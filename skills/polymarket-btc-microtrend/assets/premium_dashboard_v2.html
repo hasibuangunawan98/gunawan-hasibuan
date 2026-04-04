@@ -33,7 +33,7 @@
         </div>
         <div id="alerts" style="margin-top:14px"></div>
       </div>
-      <div class="panel"><h3>Live Candles</h3><canvas id="candles" width="620" height="300"></canvas></div>
+      <div class="panel"><h3>Live Candles</h3><div class="muted" id="tfMeta">Showing 1m</div><canvas id="candles" width="620" height="300"></canvas></div>
       <div class="panel"><h3>Depth Heatmap</h3><div id="heatmap" class="heat"></div></div>
     </div>
 
@@ -46,7 +46,7 @@
     <div class="row r3" style="margin-top:16px">
       <div class="panel"><h3>Best Signal</h3><div id="bestSignal">--</div></div>
       <div class="panel"><h3>Top Polymarket Signals</h3><div id="signals"></div></div>
-      <div class="panel"><h3>Market Regime</h3><div id="regime">--</div></div>
+      <div class="panel"><h3>Market Regime</h3><div id="regime">--</div><div style="margin-top:14px"><h3>Fusion Engine</h3><div id="fusion">--</div></div></div>
     </div>
   </div>
   <script>
@@ -76,21 +76,24 @@
       lastAlertKey = key;
     }
 
-    function renderSignals(summary){
+    function renderSignals(summary, fusion){
       const best = summary.best_setup || {};
       $('bestSignal').innerHTML = best.question ? `<div><strong>${best.question}</strong></div><div class="muted">Action: ${best.action||'--'} · Bias: ${best.bias||'--'} · Confidence: ${best.confidence||'--'}</div><div class="muted">Score: ${best.model_score ?? '--'} · Distance: ${best.distance_pct ?? '--'}</div>` : '<div class="muted">No best setup.</div>';
       $('signals').innerHTML = (summary.top_signals||[]).map(s=>`<div class="signal-item"><div><strong>${s.question||'--'}</strong></div><div class="muted">${s.action||'--'} · ${s.bias||'--'} · score ${s.model_score ?? '--'}</div></div>`).join('') || '<div class="muted">No signals.</div>';
       $('regime').innerHTML = `<div><strong>${summary.regime||'--'}</strong></div><div class="muted">Black swan status: ${summary.black_swan_status||'--'}</div><div class="muted">Snapshot: ${summary.ran_at||'--'}</div>`;
+      $('fusion').innerHTML = fusion ? `<div><strong>${fusion.stance||'--'}</strong> · ${fusion.action||'--'} · confidence ${fusion.confidence||'--'}</div><div class="muted">Score: ${fusion.score ?? '--'}</div><div class="muted">Reasons: ${(fusion.reasons||[]).join(', ') || '--'}</div><div class="muted">Tape: ${fusion.tape?.bias||'--'} · Δ ${fusion.tape?.delta ?? '--'}</div><div class="muted">MTF: 1m ${fusion.mtf?.['1m']?.bias||'--'}, 5m ${fusion.mtf?.['5m']?.bias||'--'}, 15m ${fusion.mtf?.['15m']?.bias||'--'}</div>` : '<div class="muted">No fusion data.</div>';
     }
 
     async function refresh(){
       try{
         const res = await fetch('/api/state?ts='+Date.now(), {cache:'no-store'}); const data = await res.json();
-        const live = data.live || {}, summary = data.summary || {};
+        const live = data.live || {}, summary = data.summary || {}, fusion = data.fusion || {};
         $('price').textContent = fmt(live.price); if(lastPrice != null) $('price').className = 'price ' + (live.price >= lastPrice ? 'up' : 'down'); lastPrice = live.price;
         $('conn').textContent = live.connection_status || 'unknown'; $('conn').className='status-'+(live.connection_status||'connecting'); $('updated').textContent = live.updated_at || '--';
         $('bestBid').textContent = fmt(live.best_bid); $('bestAsk').textContent = fmt(live.best_ask); $('spread').textContent = fmt(live.spread); $('imbalance').textContent = live.imbalance == null ? '--' : (Number(live.imbalance)*100).toFixed(2)+'%';
-        drawCandles(live.candles||[]); renderTable('bids', live.cum_bids||[], 'bid'); renderTable('asks', live.cum_asks||[], 'ask'); renderTrades(live.trades||[]); renderHeat(data.heatmap||[]); renderAlerts(data.alerts||[]); renderSignals(summary);
+        const chartData = (live.candles_5m?.length ? live.candles_5m : live.candles) || [];
+        $('tfMeta').textContent = live.candles_15m?.length ? 'Showing 5m with 15m context available' : 'Showing 1m';
+        drawCandles(chartData); renderTable('bids', live.cum_bids||[], 'bid'); renderTable('asks', live.cum_asks||[], 'ask'); renderTrades(live.trades||[]); renderHeat(data.heatmap||[]); renderAlerts(data.alerts||[]); renderSignals(summary, fusion);
       }catch(e){}
     }
     refresh(); setInterval(refresh, 1000);

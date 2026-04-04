@@ -28,12 +28,14 @@ state = {
     "asks": [],
     "trades": [],
     "candles": [],
+    "candles_5m": [],
+    "candles_15m": [],
     "connection_status": "connecting",
     "imbalance": None,
     "cum_bids": [],
     "cum_asks": [],
 }
-price_window = deque(maxlen=240)
+price_window = deque(maxlen=1800)
 trade_window = deque(maxlen=50)
 lock = threading.Lock()
 
@@ -71,20 +73,28 @@ def write_state() -> None:
         payload["asks"] = list(state["asks"])
         payload["trades"] = list(state["trades"])
         payload["candles"] = list(state["candles"])
+        payload["candles_5m"] = list(state.get("candles_5m") or [])
+        payload["candles_15m"] = list(state.get("candles_15m") or [])
         payload["cum_bids"] = list(state.get("cum_bids") or [])
         payload["cum_asks"] = list(state.get("cum_asks") or [])
     LIVE_FILE.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def rebuild_candles() -> None:
+def aggregate_candles(frame_seconds: int, limit: int = 60):
     buckets = {}
     for ts, price in list(price_window):
-        minute = int(ts // 60) * 60
-        bucket = buckets.setdefault(minute, {"t": minute, "o": price, "h": price, "l": price, "c": price})
+        bucket_ts = int(ts // frame_seconds) * frame_seconds
+        bucket = buckets.setdefault(bucket_ts, {"t": bucket_ts, "o": price, "h": price, "l": price, "c": price})
         bucket["h"] = max(bucket["h"], price)
         bucket["l"] = min(bucket["l"], price)
         bucket["c"] = price
-    state["candles"] = [buckets[k] for k in sorted(buckets.keys())][-60:]
+    return [buckets[k] for k in sorted(buckets.keys())][-limit:]
+
+
+def rebuild_candles() -> None:
+    state["candles"] = aggregate_candles(60, 60)
+    state["candles_5m"] = aggregate_candles(300, 60)
+    state["candles_15m"] = aggregate_candles(900, 60)
 
 
 def on_combined_message(_ws, message: str) -> None:
