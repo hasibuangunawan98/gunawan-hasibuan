@@ -1,3 +1,20 @@
+# OpenClaw local/runtime
+.openclaw/
+
+# User-local memory/logs
+memory/
+
+# Build/output
+dist/
+
+# Temporary snapshots and logs
+tmp-*.json
+tmp-*.jsonl
+
+# Skill runtime data that changes frequently
+skills/polymarket-forecast/data/
+skills/polymarket-btc-microtrend/data/
+
 # Python cache
 __pycache__/
 *.pyc

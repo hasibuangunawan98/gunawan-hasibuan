@@ -1,9 +1,0 @@
-{
-  "ran_at": "2026-04-04T12:20:41+00:00",
-  "mode": "auto-live-locks",
-  "snapshot": "C:\\Users\\LENOVO\\.openclaw\\workspace\\skills\\polymarket-forecast\\data\\auto-snapshot.json",
-  "count": 0,
-  "sport_filter": null,
-  "top": [],
-  "log_output": "C:\\Users\\LENOVO\\.openclaw\\workspace\\skills\\polymarket-forecast\\data\\live-locks.jsonl"
-}
