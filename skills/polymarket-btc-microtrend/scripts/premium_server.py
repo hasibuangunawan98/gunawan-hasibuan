@@ -15,6 +15,7 @@ ASSETS = ROOT / 'assets'
 DATA = ROOT / 'data'
 LIVE = DATA / 'live-feed.json'
 SUMMARY = DATA / 'summary.json'
+POLY_LIVE = DATA / 'polymarket-live.json'
 STATE = DATA / 'premium-state.json'
 
 for p in [DATA, ASSETS]:
@@ -147,6 +148,7 @@ def build_heatmap(live):
 def build_state():
     live = load_json(LIVE, {})
     summary = load_json(SUMMARY, {})
+    poly_live = load_json(POLY_LIVE, {})
     signals = summary.get('signals') or []
     best = summary.get('best_setup')
     if not best and signals:
@@ -163,10 +165,14 @@ def build_state():
             'best_setup': best,
             'top_signals': signals[:6],
         },
+        'polymarket_live': poly_live,
         'heatmap': build_heatmap(live),
         'fusion': fusion,
     }
     payload['alerts'] = compute_alerts(live, payload['summary'], fusion)
+    if (poly_live.get('significant_moves') or []):
+        move = poly_live['significant_moves'][0]
+        payload['alerts'].append({'level': 'info', 'title': 'Polymarket move', 'message': f"{move.get('question','Market')} moved {move.get('delta_probability')}"})
     save_state(payload)
 
 
