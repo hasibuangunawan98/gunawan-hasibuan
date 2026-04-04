@@ -104,6 +104,7 @@ Desktop launchers were created locally on the machine, outside this repository.
 
 Additional notes:
 - `docs/OVERVIEW.md`
+- `docs/ROADMAP.md`
 - `CHANGELOG.md`
 - `CONTRIBUTING.md`
 
