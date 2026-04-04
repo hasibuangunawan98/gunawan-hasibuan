@@ -213,6 +213,10 @@ def build_state():
             'top_signals': signals[:6],
         },
         'polymarket_live': poly_live,
+        'resolution_audit': {
+            'best_source': (best.get('resolution_source') or {}),
+            'top_sources': [((s.get('resolution_source') or {}).get('source_type') or 'unspecified') for s in signals[:6]],
+        },
         'heatmap': build_heatmap(live),
         'fusion': fusion,
         'action_layer': action_layer,

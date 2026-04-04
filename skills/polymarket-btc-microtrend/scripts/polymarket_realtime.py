@@ -50,6 +50,7 @@ def extract_live(summary):
             'bias': s.get('bias'),
             'confidence': s.get('confidence'),
             'model_score': s.get('model_score'),
+            'resolution_source': s.get('resolution_source') or {},
         })
     return {'best': best, 'items': items}
 

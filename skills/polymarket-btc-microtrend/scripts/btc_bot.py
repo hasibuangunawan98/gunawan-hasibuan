@@ -88,6 +88,8 @@ def classify_family(text: str) -> str:
         return "company-bitcoin"
     if "capital gains tax" in lowered or "trump" in lowered or "policy" in lowered:
         return "policy-crypto"
+    if "el salvador" in lowered or "hold $1b" in lowered or "arkham" in lowered:
+        return "treasury-holdings"
     return "other-btc"
 
 
@@ -100,6 +102,17 @@ def infer_horizon_bucket(text: str) -> str:
     if "december 31" in lowered or "2025" in lowered:
         return "short"
     return "unknown"
+
+
+def infer_resolution_source(text: str) -> Dict[str, Any]:
+    lowered = text.lower()
+    if "resolution source for this market is binance" in lowered or "binance 1 minute candle" in lowered or 'btc/usdt "high"' in lowered:
+        return {"source_type": "binance-1m-high", "source_label": "Binance BTCUSDT 1m High", "signal_source": "binance-orderflow"}
+    if "arkham" in lowered:
+        return {"source_type": "arkham-holdings", "source_label": "Arkham holdings tracker", "signal_source": "event-tracker"}
+    if "chainlink" in lowered or "oracle" in lowered:
+        return {"source_type": "oracle", "source_label": "Oracle/Chainlink-style source", "signal_source": "oracle"}
+    return {"source_type": "unspecified", "source_label": "Unspecified / market text", "signal_source": "generic"}
 
 
 def extract_market_rows(events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -128,6 +141,7 @@ def extract_market_rows(events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             except Exception:
                 pass
 
+            resolution = infer_resolution_source(text)
             rows.append({
                 "event_title": event.get("title"),
                 "question": question,
@@ -141,6 +155,7 @@ def extract_market_rows(events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                 "valid_for_bot": valid_for_bot,
                 "implied_yes_probability": implied_yes,
                 "url": f"https://polymarket.com/event/{event.get('slug')}" if event.get("slug") else None,
+                "resolution_source": resolution,
             })
     return rows
 
@@ -266,8 +281,14 @@ def extract_target_price(text: str) -> Optional[float]:
     return None
 
 
-def signal_for_deadline_level(question: str, market_prob: Optional[float], spot: Optional[float], anchor: Optional[float], horizon_bucket: str = "unknown", family: str = "other-btc") -> Dict[str, Any]:
-    price = spot or anchor or 0.0
+def signal_for_deadline_level(question: str, market_prob: Optional[float], spot: Optional[float], anchor: Optional[float], horizon_bucket: str = "unknown", family: str = "other-btc", resolution_source: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    source_type = (resolution_source or {}).get("source_type") or "unspecified"
+    if source_type == "binance-1m-high":
+        price = spot or anchor or 0.0
+    elif source_type == "oracle":
+        price = anchor or spot or 0.0
+    else:
+        price = spot or anchor or 0.0
     target = extract_target_price(question)
     if not target or price <= 0:
         return {
@@ -550,7 +571,7 @@ def run_scan(limit: int = 200) -> Dict[str, Any]:
     signals = []
     for row in market_rows:
         if row.get("market_type") == "deadline-level":
-            base = signal_for_deadline_level(row.get("question", ""), row.get("implied_yes_probability"), btc_spot, chainlink_anchor, row.get("horizon_bucket") or "unknown", row.get("family") or "other-btc")
+            base = signal_for_deadline_level(row.get("question", ""), row.get("implied_yes_probability"), btc_spot, chainlink_anchor, row.get("horizon_bucket") or "unknown", row.get("family") or "other-btc", row.get("resolution_source") or {})
         else:
             tf = row.get("timeframe") or "15m"
             base = dict(base_signals.get(tf) or base_signals["15m"])
@@ -591,7 +612,7 @@ def run_scan(limit: int = 200) -> Dict[str, Any]:
         "best_no_candidate": best_no,
         "regime": regime,
         "black_swan_status": blackswan,
-        "notes": "Public market data + multi-exchange consensus + Chainlink-style anchor snapshot used for BTC microtrend scoring. Current scan may return zero valid signals when the live Polymarket BTC market universe does not contain short-duration 5m/15m structures.",
+        "notes": "Bot now distinguishes between market resolution source and signal source. Binance-referenced markets are evaluated against Binance-style price context; oracle/event-tracker markets are separated so mismatched price logic is less likely.",
         "signals": signals[:20],
         "best_setup": best,
         "alert": alert,
