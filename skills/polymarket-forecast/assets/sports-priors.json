@@ -1,0 +1,195 @@
+{
+  "version": 2,
+  "notes": "Heuristic reference priors for sports-related prediction markets. These are not betting edges or guarantees. Use only as lightweight starting points before adjusting for current information and clear market resolution rules.",
+  "sports": {
+    "american-football": {
+      "aliases": ["nfl", "ncaa-football", "college-football", "football-us", "ncaa-cfb", "cfb", "ncaaf"],
+      "common_inputs": ["quarterback status", "injuries", "home field", "rest", "weather", "turnover volatility"],
+      "profiles": {
+        "default": {"favorite_win": 0.59, "underdog_win": 0.41, "notes": "Quarterback quality and injury news matter more than most single-player impacts in team sports."},
+        "heavy_favorite": {"favorite_win": 0.76, "underdog_win": 0.24, "notes": "Use only when team quality, quarterback edge, and injury status all support the gap."},
+        "balanced_match": {"favorite_win": 0.53, "underdog_win": 0.47, "notes": "Useful for division games or uncertain injury situations."}
+      }
+    },
+    "basketball": {
+      "aliases": ["nba", "wnba", "ncaa-basketball", "college-basketball", "euroleague", "ncaa-cbb", "cbb"],
+      "common_inputs": ["injuries", "rest", "back-to-back", "travel", "pace", "matchup fit"],
+      "profiles": {
+        "default": {"favorite_win": 0.58, "underdog_win": 0.42, "notes": "Draws are generally not relevant for standard moneyline markets. Rest, injuries, and schedule are major inputs."},
+        "heavy_favorite": {"favorite_win": 0.74, "underdog_win": 0.26, "notes": "Use when roster strength and schedule context clearly favor one side."},
+        "balanced_match": {"favorite_win": 0.53, "underdog_win": 0.47, "notes": "Useful when teams are close in quality or uncertainty is high."}
+      }
+    },
+    "baseball": {
+      "aliases": ["mlb", "npb", "kbo"],
+      "common_inputs": ["starting pitcher", "bullpen fatigue", "lineup", "park factor", "weather", "travel"],
+      "profiles": {
+        "default": {"favorite_win": 0.56, "underdog_win": 0.44, "notes": "Baseball moneylines are often tighter because single-game variance is high."},
+        "heavy_favorite": {"favorite_win": 0.68, "underdog_win": 0.32, "notes": "Use when the pitching and lineup edge is clearly one-sided."},
+        "balanced_match": {"favorite_win": 0.52, "underdog_win": 0.48, "notes": "Useful when pitching matchups are close or lineups are uncertain."}
+      }
+    },
+    "hockey": {
+      "aliases": ["nhl", "ice-hockey"],
+      "common_inputs": ["goalie confirmation", "rest", "travel", "special teams", "injuries", "shootout/OT rules"],
+      "profiles": {
+        "default": {"favorite_win": 0.56, "underdog_win": 0.44, "notes": "Goalie status and one-game variance are large drivers."},
+        "heavy_favorite": {"favorite_win": 0.69, "underdog_win": 0.31, "notes": "Use only when goalie, rest, and roster news all align."},
+        "balanced_match": {"favorite_win": 0.51, "underdog_win": 0.49, "notes": "Useful for closely matched teams or volatile spots."}
+      }
+    },
+    "soccer": {
+      "aliases": ["football", "epl", "uefa", "fifa", "mls", "ucl", "champions-league", "europa-league", "la-liga", "bundesliga", "serie-a", "ligue-1"],
+      "common_inputs": ["starting XI", "injuries", "rotation", "home advantage", "weather", "draw handling"],
+      "profiles": {
+        "default": {"favorite_win": 0.52, "draw": 0.25, "underdog_win": 0.23, "notes": "Soccer has relatively high draw frequency. Late injuries, lineup rotation, and red-card risk matter a lot."},
+        "heavy_favorite": {"favorite_win": 0.68, "draw": 0.19, "underdog_win": 0.13, "notes": "Use only when the favorite is materially stronger and lineup/news support the gap."},
+        "balanced_match": {"favorite_win": 0.39, "draw": 0.30, "underdog_win": 0.31, "notes": "Useful for derby, knockout, or otherwise close matches."}
+      }
+    },
+    "tennis": {
+      "aliases": ["atp", "wta", "grand-slam"],
+      "common_inputs": ["surface", "fitness", "recent workload", "serve quality", "retirement risk", "weather"],
+      "profiles": {
+        "default": {"favorite_win": 0.6, "underdog_win": 0.4, "notes": "Surface fit, recent form, fatigue, and retirement risk are key."},
+        "heavy_favorite": {"favorite_win": 0.78, "underdog_win": 0.22, "notes": "Use only when ranking gap, surface fit, and health all support it."},
+        "balanced_match": {"favorite_win": 0.52, "underdog_win": 0.48, "notes": "Useful for near pick'em matches."}
+      }
+    },
+    "cricket": {
+      "aliases": ["ipl", "t20", "odi", "test-cricket"],
+      "common_inputs": ["pitch conditions", "toss", "batting depth", "bowling form", "weather", "format"],
+      "profiles": {
+        "default": {"favorite_win": 0.57, "underdog_win": 0.43, "notes": "Format matters a lot: T20 is more volatile than longer formats."},
+        "heavy_favorite": {"favorite_win": 0.71, "underdog_win": 0.29, "notes": "Use when squad quality and venue conditions clearly favor one side."},
+        "balanced_match": {"favorite_win": 0.52, "underdog_win": 0.48, "notes": "Useful when toss/conditions could swing the game."}
+      }
+    },
+    "golf": {
+      "aliases": ["pga", "liv-golf", "european-tour"],
+      "common_inputs": ["course fit", "recent form", "putting variance", "weather", "field strength", "format"],
+      "profiles": {
+        "default": {"favorite_win": 0.54, "underdog_win": 0.46, "notes": "Golf outrights are high-variance; head-to-head markets are usually more forecastable."},
+        "heavy_favorite": {"favorite_win": 0.64, "underdog_win": 0.36, "notes": "Use when the market is a matchup or tightly defined prop, not a large-field outright unless resolution is very specific."},
+        "balanced_match": {"favorite_win": 0.51, "underdog_win": 0.49, "notes": "Useful for close head-to-head golf matchups."}
+      }
+    },
+    "formula-1": {
+      "aliases": ["f1", "grand-prix"],
+      "common_inputs": ["qualifying", "car pace", "strategy", "weather", "reliability", "grid penalties"],
+      "profiles": {
+        "default": {"favorite_win": 0.61, "underdog_win": 0.39, "notes": "Qualifying and car/team pace drive much of the baseline in race winner or head-to-head markets."},
+        "heavy_favorite": {"favorite_win": 0.79, "underdog_win": 0.21, "notes": "Use only when pace advantage and starting position strongly align."},
+        "balanced_match": {"favorite_win": 0.54, "underdog_win": 0.46, "notes": "Useful for teammate head-to-heads or uncertain strategy spots."}
+      }
+    },
+    "motorsport": {
+      "aliases": ["motogp", "indycar", "nascar", "wrc"],
+      "common_inputs": ["qualifying", "vehicle/team pace", "weather", "track fit", "strategy", "reliability"],
+      "profiles": {
+        "default": {"favorite_win": 0.58, "underdog_win": 0.42, "notes": "Use for non-F1 motorsport markets where pace, grid, and reliability matter heavily."},
+        "heavy_favorite": {"favorite_win": 0.74, "underdog_win": 0.26, "notes": "Use when one driver/rider or team has a pronounced equipment and pace edge."},
+        "balanced_match": {"favorite_win": 0.53, "underdog_win": 0.47, "notes": "Useful for tighter head-to-head or parity-heavy series."}
+      }
+    },
+    "mma": {
+      "aliases": ["ufc", "bellator", "pfl"],
+      "common_inputs": ["weight cut", "reach", "style matchup", "age", "recent damage", "short-notice change"],
+      "profiles": {
+        "default": {"favorite_win": 0.59, "underdog_win": 0.41, "notes": "Style matchup and short-notice changes can matter more than raw record."},
+        "heavy_favorite": {"favorite_win": 0.76, "underdog_win": 0.24, "notes": "Use only when grappling/striking edge and durability profile strongly support it."},
+        "balanced_match": {"favorite_win": 0.53, "underdog_win": 0.47, "notes": "Useful for volatile matchups with real finish equity on both sides."}
+      }
+    },
+    "boxing": {
+      "aliases": ["boxing-match", "fight-night"],
+      "common_inputs": ["reach", "power", "age", "activity", "judging risk", "weight class"],
+      "profiles": {
+        "default": {"favorite_win": 0.6, "underdog_win": 0.4, "notes": "Judging variance and inactivity can distort apparently clean priors."},
+        "heavy_favorite": {"favorite_win": 0.77, "underdog_win": 0.23, "notes": "Use when class difference and recent form are clear."},
+        "balanced_match": {"favorite_win": 0.54, "underdog_win": 0.46, "notes": "Useful for closer championship or veteran matchups."}
+      }
+    },
+    "rugby": {
+      "aliases": ["rugby-union", "rugby-league", "six-nations"],
+      "common_inputs": ["squad selection", "home field", "set piece", "weather", "travel", "discipline"],
+      "profiles": {
+        "default": {"favorite_win": 0.58, "underdog_win": 0.42, "notes": "Home field and squad rotation often matter materially."},
+        "heavy_favorite": {"favorite_win": 0.73, "underdog_win": 0.27, "notes": "Use when depth and physical mismatch are clear."},
+        "balanced_match": {"favorite_win": 0.53, "underdog_win": 0.47, "notes": "Useful for derby or tournament spots."}
+      }
+    },
+    "badminton": {
+      "aliases": ["bwf"],
+      "common_inputs": ["recent workload", "court speed", "head-to-head context", "fitness", "travel", "form"],
+      "profiles": {
+        "default": {"favorite_win": 0.59, "underdog_win": 0.41, "notes": "Singles and doubles have different dynamics, so use caution with generic priors."},
+        "heavy_favorite": {"favorite_win": 0.75, "underdog_win": 0.25, "notes": "Use when ranking/form gap is obvious and fitness is known."},
+        "balanced_match": {"favorite_win": 0.53, "underdog_win": 0.47, "notes": "Useful for evenly matched tour-level contests."}
+      }
+    },
+    "volleyball": {
+      "aliases": ["indoor-volleyball", "beach-volleyball"],
+      "common_inputs": ["serve/receive strength", "injuries", "travel", "rotation", "format", "home court"],
+      "profiles": {
+        "default": {"favorite_win": 0.6, "underdog_win": 0.4, "notes": "Use caution when moving between indoor and beach formats."},
+        "heavy_favorite": {"favorite_win": 0.77, "underdog_win": 0.23, "notes": "Use when serve/receive or depth edge is meaningful."},
+        "balanced_match": {"favorite_win": 0.54, "underdog_win": 0.46, "notes": "Useful for closely rated teams or pairs."}
+      }
+    },
+    "table-tennis": {
+      "aliases": ["ping-pong", "ittf"],
+      "common_inputs": ["recent form", "serve/receive matchup", "fatigue", "style matchup", "format", "home environment"],
+      "profiles": {
+        "default": {"favorite_win": 0.6, "underdog_win": 0.4, "notes": "Fast-match formats can be noisy; style edges matter a lot."},
+        "heavy_favorite": {"favorite_win": 0.78, "underdog_win": 0.22, "notes": "Use when class gap is obvious and recent form is stable."},
+        "balanced_match": {"favorite_win": 0.54, "underdog_win": 0.46, "notes": "Useful for close pairings or volatile tournament stages."}
+      }
+    },
+    "handball": {
+      "aliases": ["european-handball"],
+      "common_inputs": ["goalkeeper form", "injuries", "pace", "travel", "home court", "depth"],
+      "profiles": {
+        "default": {"favorite_win": 0.6, "underdog_win": 0.4, "notes": "Home-court and depth can create strong edges."},
+        "heavy_favorite": {"favorite_win": 0.78, "underdog_win": 0.22, "notes": "Use when squad quality and venue edge clearly favor one side."},
+        "balanced_match": {"favorite_win": 0.54, "underdog_win": 0.46, "notes": "Useful for tighter continental matchups."}
+      }
+    },
+    "darts": {
+      "aliases": ["pdc"],
+      "common_inputs": ["recent checkout form", "scoring power", "stage experience", "format length", "fatigue"],
+      "profiles": {
+        "default": {"favorite_win": 0.58, "underdog_win": 0.42, "notes": "Shorter formats increase volatility materially."},
+        "heavy_favorite": {"favorite_win": 0.73, "underdog_win": 0.27, "notes": "Use when scoring floor and recent form strongly support the favorite."},
+        "balanced_match": {"favorite_win": 0.53, "underdog_win": 0.47, "notes": "Useful for close seeded players or shorter formats."}
+      }
+    },
+    "cycling": {
+      "aliases": ["road-cycling", "tour-de-france", "giro", "vuelta"],
+      "common_inputs": ["route profile", "team support", "weather", "recent workload", "crash risk", "time-trial ability"],
+      "profiles": {
+        "default": {"favorite_win": 0.55, "underdog_win": 0.45, "notes": "Cycling markets are highly context-sensitive; route type matters enormously."},
+        "heavy_favorite": {"favorite_win": 0.66, "underdog_win": 0.34, "notes": "Use when team support and route fit clearly favor one rider."},
+        "balanced_match": {"favorite_win": 0.51, "underdog_win": 0.49, "notes": "Useful for deep fields or uncertain race dynamics."}
+      }
+    },
+    "snooker": {
+      "aliases": ["world-snooker"],
+      "common_inputs": ["recent form", "long-format edge", "break-building", "safety play", "fatigue"],
+      "profiles": {
+        "default": {"favorite_win": 0.58, "underdog_win": 0.42, "notes": "Longer formats often favor the stronger player more than short formats."},
+        "heavy_favorite": {"favorite_win": 0.74, "underdog_win": 0.26, "notes": "Use when long-format class difference is clear."},
+        "balanced_match": {"favorite_win": 0.53, "underdog_win": 0.47, "notes": "Useful for close ranking matchups or shorter-format events."}
+      }
+    },
+    "esports": {
+      "aliases": ["cs2", "valorant", "league-of-legends", "dota-2", "mobile-legends", "lol", "mlbb"],
+      "common_inputs": ["roster stability", "patch/meta", "map pool", "LAN vs online", "recent form", "opponent quality"],
+      "profiles": {
+        "default": {"favorite_win": 0.57, "underdog_win": 0.43, "notes": "Roster changes, map pool, patch effects, and online/offline format can swing outcomes quickly."},
+        "heavy_favorite": {"favorite_win": 0.72, "underdog_win": 0.28, "notes": "Use when team quality and current form clearly diverge."},
+        "balanced_match": {"favorite_win": 0.51, "underdog_win": 0.49, "notes": "Useful when teams are close or volatility is elevated."}
+      }
+    }
+  }
+}

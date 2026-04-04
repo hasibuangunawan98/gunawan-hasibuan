@@ -1,16 +1,3 @@
-# OpenClaw local/runtime
-.openclaw/
-
-# User-local memory/logs
-memory/
-
-# Build/output
-dist/
-
-# Temporary snapshots and logs
-tmp-*.json
-tmp-*.jsonl
-
 # Python cache
 __pycache__/
 *.pyc

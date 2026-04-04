@@ -1,0 +1,34 @@
+{
+  "ran_at": "2026-04-04T11:26:04+00:00",
+  "mode": "auto-cycle",
+  "snapshot": "C:\\Users\\LENOVO\\.openclaw\\workspace\\tmp-auto-snapshot.json",
+  "count": 5,
+  "sport_filter": "basketball",
+  "top": [
+    {
+      "market_question": "Blackburn Beavers vs. Eastern Illinois Panthers",
+      "sport": "basketball",
+      "score": 21.013,
+      "difference_vs_implied": 0.174,
+      "confidence": "medium",
+      "url": "https://polymarket.com/event/cbb-blkbn-eill-2025-12-01"
+    },
+    {
+      "market_question": "Oregon State Beavers vs. Seattle Redhawks",
+      "sport": "basketball",
+      "score": 19.9003,
+      "difference_vs_implied": 0.1943,
+      "confidence": "medium",
+      "url": "https://polymarket.com/event/cbb-oregst-sea-2026-02-14"
+    },
+    {
+      "market_question": "Bradley Braves vs. Murray State Racers (W)",
+      "sport": "basketball",
+      "score": 19.4592,
+      "difference_vs_implied": 0.1943,
+      "confidence": "medium",
+      "url": "https://polymarket.com/event/cwbb-bradly-murst-2026-01-04"
+    }
+  ],
+  "log_output": "C:\\Users\\LENOVO\\.openclaw\\workspace\\tmp-auto-log.jsonl"
+}
