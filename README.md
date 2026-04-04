@@ -1,10 +1,23 @@
 # OpenClaw Workspace
 
-Personal OpenClaw workspace containing custom skills, dashboards, live data bridges, and forecasting experiments.
+![Repo Status](https://img.shields.io/badge/status-active-22c55e)
+![Platform](https://img.shields.io/badge/platform-Windows-0078D4)
+![License](https://img.shields.io/badge/license-MIT-blue)
 
-## Highlights
+Personal OpenClaw workspace containing custom skills, dashboards, live market-data bridges, and forecasting experiments.
 
-### 1) Polymarket BTC Microtrend
+## Overview
+
+This repository acts as a working OpenClaw home for:
+- custom skill authoring
+- BTC/Polymarket dashboard development
+- local automation experiments
+- market forecasting workflows
+- documentation and references for iterative agent work
+
+## Featured Skills
+
+### Polymarket BTC Microtrend
 Path: `skills/polymarket-btc-microtrend/`
 
 Includes:
@@ -21,14 +34,14 @@ Main files:
 - `assets/premium_dashboard.html`
 - `assets/premium_dashboard_v2.html`
 
-### 2) Polymarket Forecast
+### Polymarket Forecast
 Path: `skills/polymarket-forecast/`
 
 Includes:
 - market forecasting skill
 - dashboard generation scripts
 - forecasting references and rubric
-- sports priors and market data tooling
+- sports priors and market-data tooling
 
 Main files:
 - `scripts/market_bot.py`
@@ -44,15 +57,20 @@ Main files:
 ├── USER.md
 ├── TOOLS.md
 ├── HEARTBEAT.md
+├── docs/
+│   └── OVERVIEW.md
 ├── skills/
 │   ├── polymarket-btc-microtrend/
 │   └── polymarket-forecast/
+├── CHANGELOG.md
+├── CONTRIBUTING.md
+├── LICENSE
 └── README.md
 ```
 
-## Git Notes
+## Git Strategy
 
-This repository intentionally keeps source files, references, and key assets under version control.
+This repository keeps source files, references, and important assets under version control.
 
 Runtime/generated files are ignored after the initial full snapshot commit so the repository stays cleaner over time.
 
@@ -75,21 +93,28 @@ git commit -m "your message"
 git push
 ```
 
-### Launching the BTC premium cockpit
-Desktop launchers were created locally on the machine, outside this repository.
-
-Related runtime components inside this repo:
+### BTC premium cockpit components
+Related runtime components in this repository:
 - `skills/polymarket-btc-microtrend/scripts/btc_ws_bridge.py`
 - `skills/polymarket-btc-microtrend/scripts/premium_server.py`
 
-## Suggested Next Improvements
+Desktop launchers were created locally on the machine, outside this repository.
 
-- add screenshots to this README
-- add a dedicated docs folder
-- split experimental/runtime data from reproducible outputs even further
+## Documentation
+
+Additional notes:
+- `docs/OVERVIEW.md`
+- `CHANGELOG.md`
+- `CONTRIBUTING.md`
+
+## Suggested Future Improvements
+
+- add screenshots or GIF previews of dashboards
 - publish stable skills separately if needed
+- add release tags for milestones
+- split reproducible outputs and runtime artifacts even further
 
 ## Remote Repository
 
-GitHub remote:
+GitHub:
 - <https://github.com/hasibuangunawan98/gunawan-hasibuan>
