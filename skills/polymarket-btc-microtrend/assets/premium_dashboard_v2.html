@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BTC Premium Cockpit Pro</title>
+  <style>
+    :root{--bg:#040b14;--panel:#0b1523;--panel2:#0f1d31;--line:rgba(255,255,255,.08);--text:#eef6ff;--muted:#90a4c3;--green:#22c55e;--red:#ef4444;--amber:#f59e0b;--cyan:#67e8f9;--violet:#8b5cf6}
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,Segoe UI,sans-serif;background:radial-gradient(circle at top,#0f223a 0,#06101d 45%,#040b14 100%);color:var(--text)}
+    .wrap{max-width:1720px;margin:0 auto;padding:20px}.row{display:grid;gap:16px}.r1{grid-template-columns:1.2fr .9fr .9fr}.r2,.r3{grid-template-columns:1fr 1fr 1fr}.panel{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:22px;padding:18px;box-shadow:0 16px 50px rgba(0,0,0,.35)}
+    h1,h2,h3{margin:0 0 10px}.muted{color:var(--muted)} .pill{display:inline-block;padding:7px 12px;border-radius:999px;background:rgba(103,232,249,.08);color:var(--cyan);font-size:12px;text-transform:uppercase;letter-spacing:.08em}
+    .price{font-size:58px;font-weight:800;margin:10px 0}.up{color:#98ffb6}.down{color:#ff9d9d}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.card{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:16px;padding:14px}.big{font-size:24px;font-weight:700}
+    .alert{padding:12px 14px;border-radius:14px;margin:10px 0;border:1px solid var(--line)} .alert.good{background:rgba(34,197,94,.12);color:#b9ffca}.alert.warn{background:rgba(245,158,11,.12);color:#ffe1a1}.alert.info{background:rgba(103,232,249,.12);color:#bcf7ff}
+    canvas{width:100%;height:300px;background:rgba(255,255,255,.02);border-radius:16px} table{width:100%;border-collapse:collapse} th,td{padding:9px 8px;border-bottom:1px solid rgba(255,255,255,.06);text-align:left} th{font-size:12px;text-transform:uppercase;color:var(--muted)} .bid{color:#98ffb6}.ask{color:#ffabab}
+    .heat{display:grid;gap:6px}.heatrow{display:grid;grid-template-columns:70px 1fr 70px 90px;gap:10px;align-items:center;font-size:13px}.bar{height:14px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden}.fill{height:100%}.fill.bid{background:linear-gradient(90deg,rgba(34,197,94,.35),rgba(34,197,94,.9))}.fill.ask{background:linear-gradient(90deg,rgba(239,68,68,.35),rgba(239,68,68,.9))}
+    .signal-item{padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06)} .signal-item:last-child{border-bottom:none} .status-live{color:#98ffb6}.status-reconnecting,.status-connecting{color:#ffd27a}
+    @media (max-width:1280px){.r1,.r2,.r3{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="row r1">
+      <div class="panel">
+        <div class="pill">BTC Premium Cockpit Pro</div>
+        <h1>Orderflow + Polymarket + Alerts</h1>
+        <div id="price" class="price">--</div>
+        <div class="muted">Status: <span id="conn" class="status-connecting">connecting</span> · Updated: <span id="updated">--</span></div>
+        <div class="stats" style="margin-top:16px">
+          <div class="card"><div class="muted">Best Bid</div><div id="bestBid" class="big">--</div></div>
+          <div class="card"><div class="muted">Best Ask</div><div id="bestAsk" class="big">--</div></div>
+          <div class="card"><div class="muted">Spread</div><div id="spread" class="big">--</div></div>
+          <div class="card"><div class="muted">Imbalance</div><div id="imbalance" class="big">--</div></div>
+        </div>
+        <div id="alerts" style="margin-top:14px"></div>
+      </div>
+      <div class="panel"><h3>Live Candles</h3><canvas id="candles" width="620" height="300"></canvas></div>
+      <div class="panel"><h3>Depth Heatmap</h3><div id="heatmap" class="heat"></div></div>
+    </div>
+
+    <div class="row r2" style="margin-top:16px">
+      <div class="panel"><h3>DOM Bids</h3><table><thead><tr><th>Price</th><th>Size</th><th>Cum</th></tr></thead><tbody id="bids"></tbody></table></div>
+      <div class="panel"><h3>DOM Asks</h3><table><thead><tr><th>Price</th><th>Size</th><th>Cum</th></tr></thead><tbody id="asks"></tbody></table></div>
+      <div class="panel"><h3>Trade Tape</h3><table><thead><tr><th>Time</th><th>Price</th><th>Size</th><th>Side</th></tr></thead><tbody id="trades"></tbody></table></div>
+    </div>
+
+    <div class="row r3" style="margin-top:16px">
+      <div class="panel"><h3>Best Signal</h3><div id="bestSignal">--</div></div>
+      <div class="panel"><h3>Top Polymarket Signals</h3><div id="signals"></div></div>
+      <div class="panel"><h3>Market Regime</h3><div id="regime">--</div></div>
+    </div>
+  </div>
+  <script>
+    const fmt = (n, d=2) => n == null || Number.isNaN(Number(n)) ? '--' : Number(n).toLocaleString(undefined,{maximumFractionDigits:d});
+    const $ = (id) => document.getElementById(id);
+    const ctx = $('candles').getContext('2d');
+    let lastPrice = null, lastAlertKey = '';
+
+    function drawCandles(candles){
+      ctx.clearRect(0,0,620,300); if(!candles?.length) return;
+      const highs=candles.map(c=>c.h), lows=candles.map(c=>c.l), max=Math.max(...highs), min=Math.min(...lows), range=Math.max(max-min,1), pad=22, w=(620-pad*2)/candles.length;
+      candles.forEach((c,i)=>{ const x=pad+i*w+w/2, y=(v)=>pad+((max-v)/range)*(300-pad*2), color=c.c>=c.o?'#22c55e':'#ef4444'; ctx.strokeStyle=color; ctx.beginPath(); ctx.moveTo(x,y(c.h)); ctx.lineTo(x,y(c.l)); ctx.stroke(); ctx.fillStyle=color; const top=Math.min(y(c.o),y(c.c)); const h=Math.max(Math.abs(y(c.c)-y(c.o)),2); ctx.fillRect(x-w*0.28,top,w*0.56,h); });
+    }
+
+    function renderTable(id, rows, cls){
+      $(id).innerHTML=(rows||[]).map(r=>`<tr><td class="${cls}">${fmt(r.price)}</td><td>${fmt(r.size,4)}</td><td>${fmt(r.cum,4)}</td></tr>`).join('');
+    }
+
+    function renderTrades(rows){ $('trades').innerHTML=(rows||[]).map(r=>`<tr><td>${r.t||'--'}</td><td>${fmt(r.price)}</td><td>${fmt(r.size,4)}</td><td class="${r.side==='buy'?'bid':'ask'}">${r.side||'--'}</td></tr>`).join(''); }
+
+    function renderHeat(rows){ $('heatmap').innerHTML=(rows||[]).map(r=>`<div class="heatrow"><div class="${r.side==='bid'?'bid':'ask'}">${fmt(r.price)}</div><div class="bar"><div class="fill ${r.side}" style="width:${Math.max(4,Math.round((r.intensity||0)*100))}%"></div></div><div>${fmt(r.size,4)}</div><div>${fmt(r.cum,4)}</div></div>`).join(''); }
+
+    function renderAlerts(alerts){
+      $('alerts').innerHTML=(alerts||[]).map(a=>`<div class="alert ${a.level||'info'}"><strong>${a.title}</strong><div>${a.message}</div></div>`).join('') || '<div class="muted">No active alerts.</div>';
+      const key = JSON.stringify(alerts||[]);
+      if(key && key !== lastAlertKey && alerts?.length){ try { const ac = new (window.AudioContext||window.webkitAudioContext)(); const o = ac.createOscillator(); const g = ac.createGain(); o.type='sine'; o.frequency.value=alerts.some(a=>a.level==='warn')?660:520; g.gain.value=.03; o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime+.18);} catch(e){} }
+      lastAlertKey = key;
+    }
+
+    function renderSignals(summary){
+      const best = summary.best_setup || {};
+      $('bestSignal').innerHTML = best.question ? `<div><strong>${best.question}</strong></div><div class="muted">Action: ${best.action||'--'} · Bias: ${best.bias||'--'} · Confidence: ${best.confidence||'--'}</div><div class="muted">Score: ${best.model_score ?? '--'} · Distance: ${best.distance_pct ?? '--'}</div>` : '<div class="muted">No best setup.</div>';
+      $('signals').innerHTML = (summary.top_signals||[]).map(s=>`<div class="signal-item"><div><strong>${s.question||'--'}</strong></div><div class="muted">${s.action||'--'} · ${s.bias||'--'} · score ${s.model_score ?? '--'}</div></div>`).join('') || '<div class="muted">No signals.</div>';
+      $('regime').innerHTML = `<div><strong>${summary.regime||'--'}</strong></div><div class="muted">Black swan status: ${summary.black_swan_status||'--'}</div><div class="muted">Snapshot: ${summary.ran_at||'--'}</div>`;
+    }
+
+    async function refresh(){
+      try{
+        const res = await fetch('/api/state?ts='+Date.now(), {cache:'no-store'}); const data = await res.json();
+        const live = data.live || {}, summary = data.summary || {};
+        $('price').textContent = fmt(live.price); if(lastPrice != null) $('price').className = 'price ' + (live.price >= lastPrice ? 'up' : 'down'); lastPrice = live.price;
+        $('conn').textContent = live.connection_status || 'unknown'; $('conn').className='status-'+(live.connection_status||'connecting'); $('updated').textContent = live.updated_at || '--';
+        $('bestBid').textContent = fmt(live.best_bid); $('bestAsk').textContent = fmt(live.best_ask); $('spread').textContent = fmt(live.spread); $('imbalance').textContent = live.imbalance == null ? '--' : (Number(live.imbalance)*100).toFixed(2)+'%';
+        drawCandles(live.candles||[]); renderTable('bids', live.cum_bids||[], 'bid'); renderTable('asks', live.cum_asks||[], 'ask'); renderTrades(live.trades||[]); renderHeat(data.heatmap||[]); renderAlerts(data.alerts||[]); renderSignals(summary);
+      }catch(e){}
+    }
+    refresh(); setInterval(refresh, 1000);
+  </script>
+</body>
+</html>

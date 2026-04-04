@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BTC Premium Cockpit</title>
+  <style>
+    :root{--bg:#06101d;--panel:rgba(13,24,40,.92);--line:rgba(255,255,255,.08);--text:#eef5ff;--muted:#8ea2c4;--green:#22c55e;--red:#ef4444;--blue:#6ee7ff;--amber:#f59e0b}
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,Segoe UI,sans-serif;background:linear-gradient(180deg,#07111f,#091525);color:var(--text)}
+    .shell{max-width:1600px;margin:0 auto;padding:24px}.hero,.grid,.subgrid{display:grid;gap:18px}.hero{grid-template-columns:1.2fr .8fr}.grid{grid-template-columns:1fr 1fr 1fr;margin-top:18px}.subgrid{grid-template-columns:1.2fr .8fr;margin-top:18px}
+    .panel{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.35)}.kicker{display:inline-block;padding:8px 12px;border-radius:999px;background:rgba(110,231,255,.08);color:var(--blue);font-size:12px;text-transform:uppercase}
+    h1{font-size:42px;margin:14px 0 8px}.price{font-size:56px;font-weight:800}.up{color:#9cffbc}.down{color:#ff9b9b}.muted{color:var(--muted)}
+    .mini{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.box{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:16px;padding:14px}.status-live{color:#9cffbc}.status-reconnecting,.status-connecting{color:#ffd27a}
+    canvas{width:100%;height:320px;background:rgba(255,255,255,.02);border-radius:16px} table{width:100%;border-collapse:collapse} th,td{padding:10px 8px;text-align:left;border-bottom:1px solid rgba(255,255,255,.06)} th{font-size:12px;color:var(--muted);text-transform:uppercase}
+    .bid{color:#9cffbc}.ask{color:#ffb3b3}.depth-bar{display:inline-block;height:8px;border-radius:999px;background:rgba(110,231,255,.2);margin-left:8px;vertical-align:middle}.signal-good{color:#9cffbc}.signal-bad{color:#ffb3b3}.signal-warn{color:#ffd27a}
+    @media (max-width:1200px){.hero,.grid,.subgrid{grid-template-columns:1fr}.mini{grid-template-columns:repeat(2,1fr)}}
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="hero">
+      <div class="panel">
+        <div class="kicker">Premium BTC Cockpit</div>
+        <h1>BTC Orderflow + Polymarket Signal</h1>
+        <div id="price" class="price">--</div>
+        <div class="muted">Feed status: <span id="conn" class="status-connecting">connecting</span> · Updated: <span id="updatedAt">--</span></div>
+        <div class="mini" style="margin-top:16px;">
+          <div class="box"><div class="muted">Best Bid</div><div id="bestBid">--</div></div>
+          <div class="box"><div class="muted">Best Ask</div><div id="bestAsk">--</div></div>
+          <div class="box"><div class="muted">Spread</div><div id="spread">--</div></div>
+          <div class="box"><div class="muted">Imbalance</div><div id="imbalance">--</div></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="muted" style="margin-bottom:10px;">Live 1m Candles</div>
+        <canvas id="chart" width="640" height="320"></canvas>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="panel">
+        <h3>Full Depth Bids</h3>
+        <table><thead><tr><th>Price</th><th>Size</th><th>Cumulative</th></tr></thead><tbody id="bidsBody"></tbody></table>
+      </div>
+      <div class="panel">
+        <h3>Full Depth Asks</h3>
+        <table><thead><tr><th>Price</th><th>Size</th><th>Cumulative</th></tr></thead><tbody id="asksBody"></tbody></table>
+      </div>
+      <div class="panel">
+        <h3>Trade Tape</h3>
+        <table><thead><tr><th>Time</th><th>Price</th><th>Size</th><th>Side</th></tr></thead><tbody id="tradesBody"></tbody></table>
+      </div>
+    </section>
+
+    <section class="subgrid">
+      <div class="panel">
+        <h3>Polymarket Signal Snapshot</h3>
+        <div id="signalBanner" class="muted">Loading signal...</div>
+        <div id="signalMeta" style="margin-top:12px;"></div>
+      </div>
+      <div class="panel">
+        <h3>Depth Summary</h3>
+        <div id="depthSummary" class="muted">Waiting for live depth...</div>
+      </div>
+    </section>
+  </div>
+  <script>
+    const fmt = (n) => n == null ? '--' : Number(n).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    const priceEl = document.getElementById('price'), updatedEl = document.getElementById('updatedAt'), bestBidEl = document.getElementById('bestBid'), bestAskEl = document.getElementById('bestAsk'), spreadEl = document.getElementById('spread'), imbalanceEl = document.getElementById('imbalance'), connEl = document.getElementById('conn');
+    const bidsBody = document.getElementById('bidsBody'), asksBody = document.getElementById('asksBody'), tradesBody = document.getElementById('tradesBody');
+    const signalBanner = document.getElementById('signalBanner'), signalMeta = document.getElementById('signalMeta'), depthSummary = document.getElementById('depthSummary');
+    const canvas = document.getElementById('chart'), ctx = canvas.getContext('2d');
+    let lastPrice = null;
+
+    function drawCandles(candles) {
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      if (!candles || !candles.length) return;
+      const highs = candles.map(c => c.h), lows = candles.map(c => c.l);
+      const max = Math.max(...highs), min = Math.min(...lows), range = Math.max(max - min, 1), pad = 24, w = (canvas.width - pad*2) / candles.length;
+      candles.forEach((c, i) => {
+        const x = pad + i*w + w/2;
+        const yH = pad + ((max-c.h)/range)*(canvas.height-pad*2), yL = pad + ((max-c.l)/range)*(canvas.height-pad*2), yO = pad + ((max-c.o)/range)*(canvas.height-pad*2), yC = pad + ((max-c.c)/range)*(canvas.height-pad*2);
+        const color = c.c >= c.o ? '#22c55e' : '#ef4444';
+        ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x,yH); ctx.lineTo(x,yL); ctx.stroke(); ctx.fillStyle = color;
+        const top = Math.min(yO,yC), bodyH = Math.max(Math.abs(yC-yO),2); ctx.fillRect(x-w*0.28, top, w*0.56, bodyH);
+      });
+    }
+
+    function renderDepth(tbody, rows, cls) {
+      const maxCum = Math.max(1, ...((rows || []).map(r => Number(r.cum) || 0)));
+      tbody.innerHTML = (rows || []).map(r => {
+        const width = Math.max(6, Math.round(((Number(r.cum) || 0) / maxCum) * 120));
+        return `<tr><td class="${cls}">${fmt(r.price)}</td><td>${fmt(r.size)}</td><td>${fmt(r.cum)} <span class="depth-bar" style="width:${width}px"></span></td></tr>`;
+      }).join('');
+    }
+
+    function renderTrades(rows) {
+      tradesBody.innerHTML = (rows || []).map(r => `<tr><td>${r.t || '--'}</td><td>${fmt(r.price)}</td><td>${fmt(r.size)}</td><td class="${r.side === 'buy' ? 'bid' : 'ask'}">${r.side || '--'}</td></tr>`).join('');
+    }
+
+    async function loadLive() {
+      try {
+        const res = await fetch('../data/live-feed.json?ts=' + Date.now(), { cache:'no-store' });
+        const data = await res.json();
+        const p = data.price; priceEl.textContent = fmt(p);
+        if (lastPrice != null) priceEl.className = 'price ' + (p >= lastPrice ? 'up' : 'down'); lastPrice = p;
+        updatedEl.textContent = data.updated_at || '--';
+        connEl.textContent = data.connection_status || 'unknown'; connEl.className = 'status-' + (data.connection_status || 'connecting');
+        bestBidEl.textContent = fmt(data.best_bid); bestAskEl.textContent = fmt(data.best_ask); spreadEl.textContent = fmt(data.spread);
+        imbalanceEl.textContent = data.imbalance == null ? '--' : (Number(data.imbalance) * 100).toFixed(2) + '%';
+        renderDepth(bidsBody, data.cum_bids || [], 'bid'); renderDepth(asksBody, data.cum_asks || [], 'ask'); renderTrades(data.trades || []); drawCandles(data.candles || []);
+        depthSummary.textContent = `Bid depth: ${fmt((data.cum_bids || []).slice(-1)[0]?.cum)} · Ask depth: ${fmt((data.cum_asks || []).slice(-1)[0]?.cum)} · Imbalance: ${imbalanceEl.textContent}`;
+      } catch (e) {}
+    }
+
+    async function loadSignal() {
+      try {
+        const res = await fetch('../data/summary.json?ts=' + Date.now(), { cache:'no-store' });
+        const data = await res.json();
+        const best = data.best_setup || {};
+        const action = best.action || 'n/a';
+        const cls = action.includes('watch') ? 'signal-good' : (action.includes('skip') || action.includes('avoid') ? 'signal-bad' : 'signal-warn');
+        signalBanner.className = cls;
+        signalBanner.textContent = best.question ? `${best.question} · ${action} · ${best.confidence || 'n/a'}` : 'No signal snapshot available';
+        signalMeta.innerHTML = `
+          <div class="muted">Bias: ${best.bias || '--'}</div>
+          <div class="muted">Distance: ${best.distance_pct ?? '--'}</div>
+          <div class="muted">Model score: ${best.model_score ?? '--'}</div>
+          <div class="muted">Regime: ${data.regime || '--'} · Black swan: ${data.black_swan_status || '--'}</div>
+        `;
+      } catch (e) {}
+    }
+
+    loadLive(); loadSignal();
+    setInterval(loadLive, 1000);
+    setInterval(loadSignal, 5000);
+  </script>
+</body>
+</html>

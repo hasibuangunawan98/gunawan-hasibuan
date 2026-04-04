@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BTC Live Dashboard</title>
+  <style>
+    :root {
+      --bg:#06101d; --panel:#0d1828; --line:rgba(255,255,255,.08); --text:#eef5ff; --muted:#8ea2c4;
+      --green:#22c55e; --red:#ef4444; --blue:#6ee7ff; --amber:#f59e0b;
+    }
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,Segoe UI,sans-serif;background:linear-gradient(180deg,#07111f,#091525);color:var(--text)}
+    .shell{max-width:1500px;margin:0 auto;padding:24px}
+    .hero,.grid{display:grid;gap:18px}.hero{grid-template-columns:1.2fr .8fr}.grid{grid-template-columns:1.1fr .9fr .9fr;margin-top:18px}
+    .panel{background:rgba(13,24,40,.92);border:1px solid var(--line);border-radius:20px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+    .kicker{display:inline-block;padding:8px 12px;border-radius:999px;background:rgba(110,231,255,.08);color:var(--blue);font-size:12px;text-transform:uppercase}
+    h1{font-size:44px;margin:14px 0 8px}.price{font-size:56px;font-weight:800}.up{color:#9cffbc}.down{color:#ff9b9b}.muted{color:var(--muted)}
+    .mini{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.box{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:16px;padding:14px}
+    canvas{width:100%;height:320px;background:rgba(255,255,255,.02);border-radius:16px}
+    table{width:100%;border-collapse:collapse} th,td{padding:10px 8px;text-align:left;border-bottom:1px solid rgba(255,255,255,.06)} th{font-size:12px;color:var(--muted);text-transform:uppercase}
+    .bid{color:#9cffbc}.ask{color:#ffb3b3}
+    .depth-bar{display:inline-block;height:8px;border-radius:999px;background:rgba(110,231,255,.2);margin-left:8px;vertical-align:middle}
+    @media (max-width:1100px){.hero,.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="hero">
+      <div class="panel">
+        <div class="kicker">Realtime WebSocket Feed</div>
+        <h1>BTC Live Orderbook Dashboard</h1>
+        <div id="price" class="price">--</div>
+        <div class="muted">Updated: <span id="updatedAt">--</span></div>
+        <div class="mini" style="margin-top:16px;">
+          <div class="box"><div class="muted">Best Bid</div><div id="bestBid">--</div></div>
+          <div class="box"><div class="muted">Best Ask</div><div id="bestAsk">--</div></div>
+          <div class="box"><div class="muted">Spread</div><div id="spread">--</div></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="muted" style="margin-bottom:10px;">Live 1m Candles</div>
+        <canvas id="chart" width="640" height="320"></canvas>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="panel">
+        <h3>Orderbook Bids</h3>
+        <table><thead><tr><th>Price</th><th>Size</th></tr></thead><tbody id="bidsBody"></tbody></table>
+      </div>
+      <div class="panel">
+        <h3>Orderbook Asks</h3>
+        <table><thead><tr><th>Price</th><th>Size</th></tr></thead><tbody id="asksBody"></tbody></table>
+      </div>
+      <div class="panel">
+        <h3>Recent Ticks</h3>
+        <table><thead><tr><th>Time</th><th>Price</th><th>Size</th><th>Side</th></tr></thead><tbody id="tradesBody"></tbody></table>
+      </div>
+    </section>
+  </div>
+  <script>
+    const fmt = (n) => n == null ? '--' : Number(n).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    const priceEl = document.getElementById('price');
+    const updatedEl = document.getElementById('updatedAt');
+    const bestBidEl = document.getElementById('bestBid');
+    const bestAskEl = document.getElementById('bestAsk');
+    const spreadEl = document.getElementById('spread');
+    const bidsBody = document.getElementById('bidsBody');
+    const asksBody = document.getElementById('asksBody');
+    const tradesBody = document.getElementById('tradesBody');
+    const canvas = document.getElementById('chart');
+    const ctx = canvas.getContext('2d');
+    let lastPrice = null;
+
+    function drawCandles(candles) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (!candles || !candles.length) return;
+      const highs = candles.map(c => c.h);
+      const lows = candles.map(c => c.l);
+      const max = Math.max(...highs);
+      const min = Math.min(...lows);
+      const range = Math.max(max - min, 1);
+      const pad = 24;
+      const w = (canvas.width - pad * 2) / candles.length;
+      candles.forEach((c, i) => {
+        const x = pad + i * w + w / 2;
+        const yH = pad + ((max - c.h) / range) * (canvas.height - pad * 2);
+        const yL = pad + ((max - c.l) / range) * (canvas.height - pad * 2);
+        const yO = pad + ((max - c.o) / range) * (canvas.height - pad * 2);
+        const yC = pad + ((max - c.c) / range) * (canvas.height - pad * 2);
+        const color = c.c >= c.o ? '#22c55e' : '#ef4444';
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(x, yH);
+        ctx.lineTo(x, yL);
+        ctx.stroke();
+        ctx.fillStyle = color;
+        const bodyTop = Math.min(yO, yC);
+        const bodyH = Math.max(Math.abs(yC - yO), 2);
+        ctx.fillRect(x - w * 0.28, bodyTop, w * 0.56, bodyH);
+      });
+    }
+
+    function renderRows(tbody, rows, cls) {
+      const maxSize = Math.max(1, ...((rows || []).map(r => Number(r.size) || 0)));
+      tbody.innerHTML = (rows || []).map(r => {
+        const width = Math.max(6, Math.round(((Number(r.size) || 0) / maxSize) * 120));
+        return `<tr><td class="${cls || ''}">${fmt(r.price)}</td><td>${fmt(r.size)} <span class="depth-bar" style="width:${width}px"></span></td></tr>`;
+      }).join('');
+    }
+
+    function renderTrades(rows) {
+      tradesBody.innerHTML = (rows || []).map(r => `<tr><td>${r.t || '--'}</td><td>${fmt(r.price)}</td><td>${fmt(r.size)}</td><td class="${r.side === 'buy' ? 'bid' : 'ask'}">${r.side || '--'}</td></tr>`).join('');
+    }
+
+    async function load() {
+      try {
+        const res = await fetch('../data/live-feed.json?ts=' + Date.now(), { cache: 'no-store' });
+        const data = await res.json();
+        const p = data.price;
+        priceEl.textContent = fmt(p);
+        if (lastPrice != null) priceEl.className = 'price ' + (p >= lastPrice ? 'up' : 'down');
+        lastPrice = p;
+        updatedEl.textContent = data.updated_at || '--';
+        bestBidEl.textContent = fmt(data.best_bid);
+        bestAskEl.textContent = fmt(data.best_ask);
+        spreadEl.textContent = fmt(data.spread);
+        renderRows(bidsBody, data.bids, 'bid');
+        renderRows(asksBody, data.asks, 'ask');
+        renderTrades(data.trades);
+        drawCandles(data.candles || []);
+      } catch (e) {}
+    }
+    load();
+    setInterval(load, 1000);
+  </script>
+</body>
+</html>
