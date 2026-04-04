@@ -110,6 +110,52 @@ def build_fusion(live, summary):
     }
 
 
+def build_action_layer(live, fusion, poly_live):
+    score = int(fusion.get('score') or 0)
+    spread = float(live.get('spread') or 0)
+    imbalance = float(live.get('imbalance') or 0) if live.get('imbalance') is not None else 0.0
+    moves = poly_live.get('significant_moves') or []
+    move_bias = 'neutral'
+    if moves:
+        delta = float(moves[0].get('delta_probability') or 0)
+        move_bias = 'bullish' if delta > 0 else ('bearish' if delta < 0 else 'neutral')
+        score += 1 if delta > 0 else (-1 if delta < 0 else 0)
+    if spread >= 5:
+        score = 0
+        decision = 'no-trade'
+        conviction = 'high'
+        reason = 'spread too wide'
+    elif score >= 6 and imbalance > 0:
+        decision = 'strong-long-watch'
+        conviction = 'high'
+        reason = 'fusion aligned strongly bullish'
+    elif score >= 3:
+        decision = 'weak-long-watch'
+        conviction = 'medium'
+        reason = 'bullish bias but not extreme'
+    elif score <= -6 and imbalance < 0:
+        decision = 'strong-short-watch'
+        conviction = 'high'
+        reason = 'fusion aligned strongly bearish'
+    elif score <= -3:
+        decision = 'weak-short-watch'
+        conviction = 'medium'
+        reason = 'bearish bias but not extreme'
+    else:
+        decision = 'no-trade'
+        conviction = 'low'
+        reason = 'mixed signals'
+    return {
+        'decision': decision,
+        'conviction': conviction,
+        'reason': reason,
+        'score_after_polymarket': score,
+        'spread': spread,
+        'imbalance': round(imbalance, 4),
+        'polymarket_move_bias': move_bias,
+    }
+
+
 def compute_alerts(live, summary, fusion):
     alerts = []
     imbalance = live.get('imbalance')
@@ -154,6 +200,7 @@ def build_state():
     if not best and signals:
         best = sorted(signals, key=lambda x: float(x.get('model_score') or 0), reverse=True)[0]
     fusion = build_fusion(live, {'best_setup': best})
+    action_layer = build_action_layer(live, fusion, poly_live)
     payload = {
         'generated_at': time.time(),
         'live': live,
@@ -168,11 +215,13 @@ def build_state():
         'polymarket_live': poly_live,
         'heatmap': build_heatmap(live),
         'fusion': fusion,
+        'action_layer': action_layer,
     }
     payload['alerts'] = compute_alerts(live, payload['summary'], fusion)
     if (poly_live.get('significant_moves') or []):
         move = poly_live['significant_moves'][0]
         payload['alerts'].append({'level': 'info', 'title': 'Polymarket move', 'message': f"{move.get('question','Market')} moved {move.get('delta_probability')}"})
+    payload['alerts'].append({'level': 'good' if 'long' in action_layer.get('decision','') else ('warn' if 'short' in action_layer.get('decision','') else 'info'), 'title': 'Bot action layer', 'message': f"{action_layer.get('decision')} · conviction {action_layer.get('conviction')} · {action_layer.get('reason')}"})
     save_state(payload)
 
 
