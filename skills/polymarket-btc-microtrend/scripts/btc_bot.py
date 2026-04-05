@@ -15,8 +15,41 @@ DEFAULT_DASHBOARD = DATA_DIR / "dashboard.html"
 DEFAULT_LOG = DATA_DIR / "signals.jsonl"
 DEFAULT_FAST_SUMMARY = DATA_DIR / "fast-summary.json"
 DEFAULT_ALERT = DATA_DIR / "alert.json"
+ORDER_BOOK = DATA_DIR / "order_book.json"
+TRADES_LOG = DATA_DIR / "trades.jsonl"
 GAMMA_API_BASE = "https://gamma-api.polymarket.com"
 HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; btc-microtrend-bot/1.0)", "Accept": "application/json"}
+
+
+def generate_simulated_market_data(btc_price: float) -> None:
+    """Generate simulated order book and trades based on BTC price."""
+    import random
+    
+    if not btc_price:
+        btc_price = 67000  # Default fallback
+    
+    now = utc_now()
+    spread = btc_price * 0.0005  # 0.05% spread
+    
+    # Generate order book
+    bids = [{"price": round(btc_price - spread * (i+1) * 0.1, 2), "size": round(0.5 + random.uniform(0, 1), 4)} for i in range(15)]
+    asks = [{"price": round(btc_price + spread * (i+1) * 0.1, 2), "size": round(0.5 + random.uniform(0, 1), 4)} for i in range(15)]
+    
+    order_book = {"bids": bids, "asks": asks, "updated_at": now}
+    ORDER_BOOK.write_text(json.dumps(order_book, ensure_ascii=False, indent=2), encoding='utf-8')
+    
+    # Generate simulated trades
+    trades = []
+    for i in range(10):
+        trade_price = btc_price + random.uniform(-spread * 2, spread * 2)
+        trade_size = random.uniform(0.01, 2.0)
+        trade_side = "buy" if random.random() > 0.5 else "sell"
+        trades.append({"timestamp": now, "price": round(trade_price, 2), "size": round(trade_size, 4), "side": trade_side})
+    
+    # Write trades to JSONL
+    with TRADES_LOG.open('w', encoding='utf-8') as f:
+        for trade in trades:
+            f.write(json.dumps(trade, ensure_ascii=False) + '\n')
 
 
 def utc_now() -> str:
@@ -636,6 +669,11 @@ def run_scan(limit: int = 200) -> Dict[str, Any]:
     best_yes = next((s for s in signals if s.get("action") == "watch-yes"), None)
     best_no = next((s for s in signals if s.get("action") == "watch-no"), None)
     alert = summarize_alert(signals[:20])
+    
+    # Generate simulated market data for dashboard
+    sim_price = btc_spot or chainlink_anchor or 67000
+    print(f"Generating simulated market data at BTC price: ${sim_price:,.2f}")
+    generate_simulated_market_data(sim_price)
 
     return {
         "ran_at": utc_now(),
