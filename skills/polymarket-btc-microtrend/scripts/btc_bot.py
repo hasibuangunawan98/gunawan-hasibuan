@@ -438,10 +438,32 @@ def classify_status(action: str) -> Dict[str, str]:
     return {"label": "unknown", "css": "status-unknown"}
 
 
+def load_order_book() -> Dict[str, Any]:
+    """Muat data order book dari file JSON."""
+    try:
+        return json.loads(ORDER_BOOK.read_text(encoding='utf-8'))
+    except Exception:
+        return {"bids": [], "asks": []}
+
+def load_recent_trades() -> List[Dict[str, Any]]:
+    """Muat data trades terbaru dari file JSONL."""
+    try:
+        trades = []
+        with TRADES_LOG.open('r', encoding='utf-8') as f:
+            for line in f:
+                trades.append(json.loads(line))
+        return trades[-10:]  # Ambil 10 trades terbaru
+    except Exception:
+        return []
+
 def render_dashboard(summary: Dict[str, Any], output_path: Path) -> None:
     template = DASHBOARD_TEMPLATE.read_text(encoding="utf-8")
     best = summary.get("best_setup") or {}
     signals = summary.get("signals") or []
+    
+    # Muat data real-time
+    order_book = load_order_book()
+    recent_trades = load_recent_trades()
 
     if best:
         badge = "bull" if "bull" in str(best.get("bias")) else ("bear" if "bear" in str(best.get("bias")) else "neutral")
@@ -473,6 +495,33 @@ def render_dashboard(summary: Dict[str, Any], output_path: Path) -> None:
     )
     alert_class = "good" if mode in {"hard", "soft"} else "idle"
 
+    # Siapkan data order book untuk tabel
+    order_book_rows = ""
+    for bid, ask in zip(order_book.get("bids", [])[:10], order_book.get("asks", [])[:10]):
+        order_book_rows += f"
+        <tr>
+            <td>{bid.get('price', 'N/A')}</td>
+            <td>{bid.get('size', 'N/A')}</td>
+            <td>{ask.get('size', 'N/A')}</td>
+        </tr>
+        "
+    
+    # Siapkan data trades untuk tabel
+    trade_rows = ""
+    for trade in recent_trades:
+        trade_rows += f"
+        <tr>
+            <td>{trade.get('timestamp', 'N/A')}</td>
+            <td>{trade.get('price', 'N/A')}</td>
+            <td>{trade.get('size', 'N/A')}</td>
+            <td>{trade.get('side', 'N/A')}</td>
+        </tr>
+        "
+    
+    # Siapkan data untuk grafik harga
+    chart_labels = [trade.get('timestamp', '') for trade in recent_trades]
+    chart_data = [trade.get('price', 0) for trade in recent_trades]
+    
     replacements = {
         "{{LAST_RUN}}": str(summary.get("ran_at") or "n/a"),
         "{{BTC_SPOT}}": str(summary.get("btc_spot") or "n/a"),
@@ -488,6 +537,10 @@ def render_dashboard(summary: Dict[str, Any], output_path: Path) -> None:
         "{{BEST_NO}}": str(((summary.get("best_no_candidate") or {}).get("question")) or "none"),
         "{{NOTES}}": str(summary.get("notes") or "n/a"),
         "{{SIGNAL_ROWS}}": "\n".join(rows),
+        "{{ORDER_BOOK_ROWS}}": order_book_rows,
+        "{{TRADE_ROWS}}": trade_rows,
+        "{{CHART_LABELS}}": json.dumps(chart_labels),
+        "{{CHART_DATA}}": json.dumps(chart_data),
     }
     html = template
     for old, new in replacements.items():

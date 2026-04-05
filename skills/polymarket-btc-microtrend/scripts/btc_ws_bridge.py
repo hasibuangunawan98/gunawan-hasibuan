@@ -16,6 +16,8 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 LIVE_FILE = DATA_DIR / "live-feed.json"
+ORDER_BOOK_FILE = DATA_DIR / "order_book.json"
+TRADES_LOG = DATA_DIR / "trades.jsonl"
 DEPTH_LEVELS = 15
 
 state = {
@@ -78,6 +80,15 @@ def write_state() -> None:
         payload["cum_bids"] = list(state.get("cum_bids") or [])
         payload["cum_asks"] = list(state.get("cum_asks") or [])
     LIVE_FILE.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    
+    # Simpan order book terpisah
+    order_book_payload = {"bids": list(state["bids"]), "asks": list(state["asks"]), "updated_at": state.get("updated_at")}
+    ORDER_BOOK_FILE.write_text(json.dumps(order_book_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+def log_trade(trade: dict) -> None:
+    """Simpan trade ke file JSONL untuk logging historis."""
+    with TRADE_LOG.open('a', encoding='utf-8') as f:
+        f.write(json.dumps(trade, ensure_ascii=False) + '\n')
 
 
 def aggregate_candles(frame_seconds: int, limit: int = 60):
@@ -126,13 +137,18 @@ def on_combined_message(_ws, message: str) -> None:
         elif "@trade" in stream:
             price = float(data.get("p") or 0)
             side = "sell" if data.get("m") else "buy"
+            size = float(data.get("q") or 0)
             state["price"] = price
             state["updated_at"] = now
             state["connection_status"] = "live"
             price_window.append((time.time(), price))
-            trade_window.appendleft({"t": now, "price": price, "size": float(data.get("q") or 0), "side": side})
+            trade_record = {"t": now, "price": price, "size": size, "side": side}
+            trade_window.appendleft(trade_record)
             state["trades"] = list(trade_window)
             rebuild_candles()
+            
+            # Log trade ke file JSONL
+            log_trade(trade_record)
 
     write_state()
 

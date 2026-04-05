@@ -77,6 +77,50 @@
         <div class="metric"><div class="label">Actionable Signals</div><div class="value">{{ACTIONABLE_COUNT}}</div></div>
       </div>
     </section>
+    
+    <!-- Bagian Real-Time Data -->
+    <section class="grid">
+      <div class="panel section">
+        <h2>Order Book (Real-Time)</h2>
+        <div class="table-wrap">
+          <table id="orderBookTable">
+            <thead>
+              <tr>
+                <th>Price (USD)</th>
+                <th>Bid Size</th>
+                <th>Ask Size</th>
+              </tr>
+            </thead>
+            <tbody>
+              {{ORDER_BOOK_ROWS}}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="panel section">
+        <h2>BTC Price Chart (Real-Time)</h2>
+        <canvas id="btcPriceChart" height="300"></canvas>
+      </div>
+    </section>
+    
+    <section class="panel section" style="margin-top:22px;">
+      <h2>Recent Trades</h2>
+      <div class="table-wrap">
+        <table id="tradesTable">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Price (USD)</th>
+              <th>Size</th>
+              <th>Side</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{TRADE_ROWS}}
+          </tbody>
+        </table>
+      </div>
+    </section>
 
     <div class="alert-banner {{ALERT_CLASS}}">{{ALERT_TEXT}}</div>
 
@@ -137,10 +181,14 @@
       </div>
     </section>
   </div>
+  <!-- Load Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
     const familyFilter = document.getElementById('familyFilter');
     const signalsTable = document.getElementById('signalsTable');
     const refreshBtn = document.getElementById('refreshBtn');
+    
+    // Filter untuk sinyal
     if (familyFilter && signalsTable) {
       familyFilter.addEventListener('change', () => {
         const selected = familyFilter.value;
@@ -150,11 +198,45 @@
         });
       });
     }
+    
+    // Refresh manual
     if (refreshBtn) {
       refreshBtn.addEventListener('click', () => {
         alert('Untuk refresh manual cepat, jalankan shortcut desktop: Refresh BTC Polymarket Dashboard.bat');
       });
     }
-  </script>
+    
+    // Grafik harga BTC
+    const btcPriceCtx = document.getElementById('btcPriceChart');
+    if (btcPriceCtx) {
+      const btcPriceChart = new Chart(btcPriceCtx, {
+        type: 'line',
+        data: {
+          labels: {{CHART_LABELS}},
+          datasets: [{
+            label: 'BTC Price (USD)',
+            data: {{CHART_DATA}},
+            borderColor: '#6ee7ff',
+            backgroundColor: 'rgba(110, 231, 255, 0.1)',
+            borderWidth: 2,
+            tension: 0.1
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: false
+            }
+          }
+        }
+      });
+    }
+    
+    // Auto-refresh setiap 10 detik
+    setInterval(() => {
+      window.location.reload();
+    }, 10000);
+  </script
 </body>
 </html>
