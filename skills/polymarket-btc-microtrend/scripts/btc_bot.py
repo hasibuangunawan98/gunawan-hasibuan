@@ -25,11 +25,13 @@ def generate_simulated_market_data(btc_price: float) -> None:
     """Generate simulated order book and trades based on BTC price."""
     import random
     
-    if not btc_price:
+    if not btc_price or btc_price <= 0:
         btc_price = 67000  # Default fallback
     
     now = utc_now()
     spread = btc_price * 0.0005  # 0.05% spread
+    
+    print(f"[Simulator] Generating data at BTC price: ${btc_price:,.2f}")
     
     # Generate order book
     bids = [{"price": round(btc_price - spread * (i+1) * 0.1, 2), "size": round(0.5 + random.uniform(0, 1), 4)} for i in range(15)]
@@ -37,6 +39,7 @@ def generate_simulated_market_data(btc_price: float) -> None:
     
     order_book = {"bids": bids, "asks": asks, "updated_at": now}
     ORDER_BOOK.write_text(json.dumps(order_book, ensure_ascii=False, indent=2), encoding='utf-8')
+    print(f"[Simulator] Order book written to {ORDER_BOOK}")
     
     # Generate simulated trades
     trades = []
@@ -50,6 +53,7 @@ def generate_simulated_market_data(btc_price: float) -> None:
     with TRADES_LOG.open('w', encoding='utf-8') as f:
         for trade in trades:
             f.write(json.dumps(trade, ensure_ascii=False) + '\n')
+    print(f"[Simulator] Trades written to {TRADES_LOG}")
 
 
 def utc_now() -> str:
