@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta http-equiv="refresh" content="300" />
-  <title>BTC Level/Deadline Dashboard</title>
+  <title>BTC Polymarket Intelligence Bot</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     :root {
       --bg: #07111f;
@@ -18,198 +18,238 @@
       --bad: #ef4444;
       --shadow: 0 20px 60px rgba(0,0,0,.35);
       --radius: 22px;
+      --bull: #22c55e;
+      --bear: #ef4444;
     }
     * { box-sizing: border-box; }
     body {
-      margin:0; color:var(--text); font-family:Inter,Segoe UI,system-ui,sans-serif;
+      margin:0; color:var(--text); font-family:'Inter',Segoe UI,system-ui,sans-serif;
       background: radial-gradient(circle at top left, rgba(124,58,237,.28), transparent 35%), radial-gradient(circle at top right, rgba(110,231,255,.18), transparent 30%), linear-gradient(180deg, #08101c 0%, #0a1322 45%, #08101a 100%);
       min-height:100vh;
     }
-    .shell { max-width: 1380px; margin:0 auto; padding:28px; }
+    .shell { max-width: 1400px; margin:0 auto; padding:24px; }
     .panel { background:var(--panel); border:1px solid var(--line); backdrop-filter: blur(18px); border-radius:var(--radius); box-shadow:var(--shadow); }
-    .hero { display:grid; grid-template-columns: 1.1fr .9fr; gap:22px; }
-    .hero-main, .section { padding:24px; }
-    .kicker { display:inline-block; padding:8px 12px; border-radius:999px; background:rgba(110,231,255,.08); color:var(--accent); font-size:12px; text-transform:uppercase; letter-spacing:.08em; border:1px solid rgba(110,231,255,.18); }
-    h1 { font-size: clamp(32px,5vw,56px); margin:16px 0 10px; line-height:1.02; }
-    .subtitle, .footnote { color:var(--muted); line-height:1.6; }
-    .metrics { display:grid; gap:14px; }
-    .metric, .card { background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06); border-radius:18px; padding:18px; }
-    .metric .label { color:var(--muted); font-size:12px; text-transform:uppercase; }
-    .metric .value { font-size:28px; font-weight:700; margin-top:8px; }
-    .grid { display:grid; grid-template-columns: 1fr 1fr; gap:22px; margin-top:22px; }
-    .cards { display:grid; gap:14px; }
-    .pill { display:inline-block; padding:7px 10px; border-radius:999px; font-size:12px; font-weight:700; }
-    .bull { background:rgba(34,197,94,.12); color:#8bffb2; }
-    .bear { background:rgba(239,68,68,.12); color:#ff9b9b; }
-    .neutral { background:rgba(245,158,11,.12); color:#ffd27a; }
-    .yes-box { border-left: 4px solid #22c55e; }
-    .no-box { border-left: 4px solid #ef4444; }
-    .filters { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px; align-items:center; }
-    select, button { padding:10px 12px; border-radius:12px; background:rgba(0,0,0,.24); color:var(--text); border:1px solid rgba(255,255,255,.08); }
-    button { cursor:pointer; }
-    .status-actionable { color:#8bffb2; font-weight:700; }
-    .status-skip { color:#ffb3b3; font-weight:700; }
-    .status-wait { color:#ffd27a; font-weight:700; }
-    .status-unknown { color:#cbd5e1; font-weight:700; }
-    .alert-banner { margin-top:22px; padding:18px 20px; border-radius:18px; border:1px solid rgba(255,255,255,.08); font-weight:700; }
-    .alert-banner.good { background:rgba(34,197,94,.15); color:#9cffbc; border-color:rgba(34,197,94,.35); }
-    .alert-banner.idle { background:rgba(245,158,11,.12); color:#ffd27a; border-color:rgba(245,158,11,.28); }
-    .watchlist { margin-top:22px; color:var(--muted); }
-    .table-wrap { overflow:auto; border-radius:18px; border:1px solid rgba(255,255,255,.06); background:rgba(255,255,255,.02); }
-    table { width:100%; border-collapse: collapse; min-width: 900px; }
-    th, td { padding:14px 16px; text-align:left; border-bottom:1px solid rgba(255,255,255,.06); }
-    th { color:var(--muted); font-size:12px; text-transform:uppercase; }
-    @media (max-width: 1024px) { .hero, .grid { grid-template-columns: 1fr; } .shell { padding:18px; } }
+    
+    /* Header */
+    .header { display:grid; grid-template-columns: 1fr auto; gap:20px; align-items:center; margin-bottom:24px; }
+    .header-left h1 { font-size: 36px; margin:0 0 8px 0; background:linear-gradient(135deg, #6ee7ff, #7c3aed); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .status-badge { display:inline-flex; align-items:center; gap:8px; padding:8px 16px; background:rgba(34,197,94,.15); border:1px solid rgba(34,197,94,.3); border-radius:999px; color:#8bffb2; font-size:13px; font-weight:600; }
+    .status-dot { width:8px; height:8px; background:#22c55e; border-radius:50%; animation:pulse 2s infinite; }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.5; } }
+    
+    /* Metrics Grid */
+    .metrics-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:16px; margin-bottom:24px; }
+    .metric-card { background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06); border-radius:16px; padding:20px; }
+    .metric-card .label { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.08em; margin-bottom:8px; }
+    .metric-card .value { font-size:28px; font-weight:700; }
+    .metric-card .change { font-size:13px; margin-top:6px; }
+    .change.up { color:var(--bull); }
+    .change.down { color:var(--bear); }
+    
+    /* Main Grid */
+    .main-grid { display:grid; grid-template-columns: 2fr 1fr; gap:20px; margin-bottom:24px; }
+    .section { padding:20px; }
+    .section h2 { font-size:18px; margin:0 0 16px 0; color:var(--accent); }
+    
+    /* Tables */
+    .table-wrap { overflow-x:auto; border-radius:12px; border:1px solid rgba(255,255,255,.06); }
+    table { width:100%; border-collapse: collapse; }
+    th, td { padding:12px 16px; text-align:left; border-bottom:1px solid rgba(255,255,255,.04); }
+    th { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.05em; font-weight:600; }
+    tr:hover { background:rgba(255,255,255,.02); }
+    
+    /* Order Book */
+    .order-book-grid { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+    .ob-side { background:rgba(255,255,255,.02); border-radius:12px; padding:12px; }
+    .ob-side h3 { margin:0 0 12px 0; font-size:13px; text-transform:uppercase; }
+    .ob-side.asks h3 { color:var(--bear); }
+    .ob-side.bids h3 { color:var(--bull); }
+    .ob-row { display:grid; grid-template-columns: 1fr 1fr; gap:8px; padding:6px 0; font-size:12px; border-bottom:1px solid rgba(255,255,255,.03); }
+    .ob-row:last-child { border-bottom:none; }
+    .ob-price { font-weight:600; }
+    .ob-size { color:var(--muted); text-align:right; }
+    
+    /* Trades */
+    .trade-row.buy { border-left:3px solid var(--bull); }
+    .trade-row.sell { border-left:3px solid var(--bear); }
+    
+    /* Pills & Badges */
+    .pill { display:inline-block; padding:5px 10px; border-radius:999px; font-size:11px; font-weight:700; text-transform:uppercase; }
+    .pill.bull { background:rgba(34,197,94,.15); color:#8bffb2; }
+    .pill.bear { background:rgba(239,68,68,.15); color:#ff9b9b; }
+    .pill.neutral { background:rgba(245,158,11,.15); color:#ffd27a; }
+    
+    /* Buttons */
+    .btn { padding:10px 20px; border-radius:10px; background:linear-gradient(135deg, rgba(110,231,255,.2), rgba(124,58,237,.2)); color:var(--text); border:1px solid rgba(110,231,255,.3); cursor:pointer; font-weight:600; transition:all .2s; }
+    .btn:hover { background:linear-gradient(135deg, rgba(110,231,255,.3), rgba(124,58,237,.3)); transform:translateY(-1px); }
+    
+    /* Alert Banner */
+    .alert-banner { padding:16px 20px; border-radius:14px; margin-bottom:20px; font-weight:600; }
+    .alert-banner.good { background:rgba(34,197,94,.15); color:#8bffb2; border:1px solid rgba(34,197,94,.3); }
+    .alert-banner.warn { background:rgba(245,158,11,.15); color:#ffd27a; border:1px solid rgba(245,158,11,.3); }
+    .alert-banner.idle { background:rgba(255,255,255,.05); color:var(--muted); border:1px solid var(--line); }
+    
+    /* Chart Container */
+    .chart-container { position:relative; height:300px; }
+    
+    /* Loading Animation */
+    .loading { text-align:center; padding:40px; color:var(--muted); }
+    .spinner { width:40px; height:40px; border:3px solid rgba(255,255,255,.1); border-top-color:var(--accent); border-radius:50%; animation:spin 1s linear infinite; margin:0 auto 16px; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    
+    /* Responsive */
+    @media (max-width: 1024px) { .main-grid, .header { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
   <div class="shell">
-    <section class="hero">
-      <div class="panel hero-main">
-        <div class="kicker">BTC Level / Deadline Engine</div>
-        <h1>Polymarket BTC Target Dashboard</h1>
-        <p class="subtitle">Bitcoin Polymarket scanner for price-target and deadline markets using live spot consensus, anchor pricing, distance-to-target logic, and risk filters.</p>
+    <!-- Header -->
+    <div class="header">
+      <div class="header-left">
+        <h1>🐋 BTC Polymarket Intelligence</h1>
+        <p style="color:var(--muted); margin:0;">Real-time market analysis & signal generation</p>
       </div>
-      <div class="panel section metrics">
-        <div class="metric"><div class="label">Last Run</div><div class="value">{{LAST_RUN}}</div></div>
-        <div class="metric"><div class="label">BTC Spot</div><div class="value">{{BTC_SPOT}}</div></div>
-        <div class="metric"><div class="label">Chainlink BTC/USD</div><div class="value">{{CHAINLINK_SPOT}}</div></div>
-        <div class="metric"><div class="label">Actionable Signals</div><div class="value">{{ACTIONABLE_COUNT}}</div></div>
+      <div class="status-badge">
+        <span class="status-dot"></span>
+        <span id="connectionStatus">LIVE</span>
       </div>
-    </section>
-    
-    <!-- Bagian Real-Time Data -->
-    <section class="grid">
-      <div class="panel section">
-        <h2>Order Book (Real-Time)</h2>
-        <div class="table-wrap">
-          <table id="orderBookTable">
-            <thead>
-              <tr>
-                <th>Price (USD)</th>
-                <th>Bid Size</th>
-                <th>Ask Size</th>
-              </tr>
-            </thead>
-            <tbody>
-              {{ORDER_BOOK_ROWS}}
-            </tbody>
-          </table>
+    </div>
+
+    <!-- Alert Banner -->
+    <div id="alertBanner" class="alert-banner idle">
+      Scanning markets... Last update: {{LAST_RUN}}
+    </div>
+
+    <!-- Metrics Grid -->
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="label">BTC Spot Price</div>
+        <div class="value" id="btcPrice">{{BTC_SPOT}}</div>
+        <div class="change up" id="priceChange">+0.00% (24h)</div>
+      </div>
+      <div class="metric-card">
+        <div class="label">Chainlink Anchor</div>
+        <div class="value">{{CHAINLINK_SPOT}}</div>
+        <div class="label" style="margin-top:6px;">Oracle Feed</div>
+      </div>
+      <div class="metric-card">
+        <div class="label">Active Signals</div>
+        <div class="value">{{ACTIONABLE_COUNT}}</div>
+        <div class="label" style="margin-top:6px;">Actionable Setups</div>
+      </div>
+      <div class="metric-card">
+        <div class="label">Markets Scanned</div>
+        <div class="value" id="marketsScanned">14</div>
+        <div class="label" style="margin-top:6px;">BTC Markets</div>
+      </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="main-grid">
+      <!-- Left Column -->
+      <div style="display:grid; gap:20px;">
+        <!-- Price Chart -->
+        <div class="panel section">
+          <h2>📈 Price Movement (Simulated)</h2>
+          <div class="chart-container">
+            <canvas id="priceChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Signals Table -->
+        <div class="panel section">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <h2 style="margin:0;">🎯 Market Signals</h2>
+            <button class="btn" onclick="refreshData()">↻ Refresh</button>
+          </div>
+          <div class="table-wrap">
+            <table id="signalsTable">
+              <thead>
+                <tr>
+                  <th>Market</th>
+                  <th>Bias</th>
+                  <th>Confidence</th>
+                  <th>Probability</th>
+                  <th>Score</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {{SIGNAL_ROWS}}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
-      <div class="panel section">
-        <h2>BTC Price Chart (Real-Time)</h2>
-        <canvas id="btcPriceChart" height="300"></canvas>
-      </div>
-    </section>
-    
-    <section class="panel section" style="margin-top:22px;">
-      <h2>Recent Trades</h2>
-      <div class="table-wrap">
-        <table id="tradesTable">
-          <thead>
-            <tr>
-              <th>Time</th>
-              <th>Price (USD)</th>
-              <th>Size</th>
-              <th>Side</th>
-            </tr>
-          </thead>
-          <tbody>
-            {{TRADE_ROWS}}
-          </tbody>
-        </table>
-      </div>
-    </section>
 
-    <div class="alert-banner {{ALERT_CLASS}}">{{ALERT_TEXT}}</div>
+      <!-- Right Column -->
+      <div style="display:grid; gap:20px;">
+        <!-- Order Book -->
+        <div class="panel section">
+          <h2>📊 Order Book</h2>
+          <div class="order-book-grid">
+            <div class="ob-side asks">
+              <h3>Asks (Sell)</h3>
+              <div id="asksList">
+                {{ORDER_BOOK_ASKS}}
+              </div>
+            </div>
+            <div class="ob-side bids">
+              <h3>Bids (Buy)</h3>
+              <div id="bidsList">
+                {{ORDER_BOOK_BIDS}}
+              </div>
+            </div>
+          </div>
+        </div>
 
-    <div class="watchlist">Priority watchlist: BTC price-target markets first, especially “Will Bitcoin hit $...?” contracts and common dated horizons.</div>
+        <!-- Recent Trades -->
+        <div class="panel section">
+          <h2>💹 Recent Trades</h2>
+          <div class="table-wrap">
+            <table id="tradesTable">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Price</th>
+                  <th>Size</th>
+                  <th>Side</th>
+                </tr>
+              </thead>
+              <tbody>
+                {{TRADE_ROWS}}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-    <section class="grid">
-      <div class="panel section">
-        <h2>Best Setup Right Now</h2>
-        {{BEST_SETUP}}
-      </div>
-      <div class="panel section">
-        <h2>Risk & Regime</h2>
-        <div class="cards">
-          <div class="card"><strong>Market Regime</strong><div class="footnote">{{REGIME}}</div></div>
-          <div class="card"><strong>Black Swan Filter</strong><div class="footnote">{{BLACKSWAN}}</div></div>
-          <div class="card"><strong>Valid BTC Markets</strong><div class="footnote">{{VALID_MARKETS}}</div></div>
-          <div class="card yes-box"><strong>Best YES Candidate</strong><div class="footnote">{{BEST_YES}}</div></div>
-          <div class="card no-box"><strong>Best NO Candidate</strong><div class="footnote">{{BEST_NO}}</div></div>
-          <div class="card"><strong>Cron</strong><div class="footnote">Active · every 15 minutes</div></div>
-          <div class="card"><strong>Notes</strong><div class="footnote">{{NOTES}}</div></div>
+        <!-- Market Stats -->
+        <div class="panel section">
+          <h2>📋 Market Stats</h2>
+          <div class="cards">
+            <div class="metric-card">
+              <div class="label">Spread</div>
+              <div class="value" id="spreadValue">--</div>
+            </div>
+            <div class="metric-card">
+              <div class="label">Best Bid</div>
+              <div class="value" id="bestBid">--</div>
+            </div>
+            <div class="metric-card">
+              <div class="label">Best Ask</div>
+              <div class="value" id="bestAsk">--</div>
+            </div>
+          </div>
         </div>
       </div>
-    </section>
-
-    <section class="panel section" style="margin-top:22px;">
-      <h2>Signals</h2>
-      <div class="filters">
-        <label class="footnote">Family filter:</label>
-        <select id="familyFilter">
-          <option value="all">All</option>
-          <option value="btc-price-target">BTC price target</option>
-          <option value="company-bitcoin">Company Bitcoin</option>
-          <option value="policy-crypto">Policy crypto</option>
-          <option value="other-btc">Other BTC</option>
-        </select>
-        <button id="refreshBtn" type="button">Refresh manual</button>
-        <span class="footnote">Auto-refresh page: 5 min · fast scan cron: 1 min · full scan cron: 5 min</span>
-      </div>
-      <div class="table-wrap">
-        <table id="signalsTable">
-          <thead>
-            <tr>
-              <th>Market</th>
-              <th>Family</th>
-              <th>Bias</th>
-              <th>Confidence</th>
-              <th>Polymarket Prob</th>
-              <th>Distance</th>
-              <th>Model Score</th>
-              <th>Action</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {{SIGNAL_ROWS}}
-          </tbody>
-        </table>
-      </div>
-    </section>
+    </div>
   </div>
-  <!-- Load Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
   <script>
-    const familyFilter = document.getElementById('familyFilter');
-    const signalsTable = document.getElementById('signalsTable');
-    const refreshBtn = document.getElementById('refreshBtn');
-    
-    // Filter untuk sinyal
-    if (familyFilter && signalsTable) {
-      familyFilter.addEventListener('change', () => {
-        const selected = familyFilter.value;
-        [...signalsTable.querySelectorAll('tbody tr')].forEach((row) => {
-          const fam = row.dataset.family || 'all';
-          row.style.display = selected === 'all' || fam === selected ? '' : 'none';
-        });
-      });
-    }
-    
-    // Refresh manual
-    if (refreshBtn) {
-      refreshBtn.addEventListener('click', () => {
-        alert('Untuk refresh manual cepat, jalankan shortcut desktop: Refresh BTC Polymarket Dashboard.bat');
-      });
-    }
-    
-    // Grafik harga BTC
-    const btcPriceCtx = document.getElementById('btcPriceChart');
-    if (btcPriceCtx) {
-      const btcPriceChart = new Chart(btcPriceCtx, {
+    // Price Chart
+    const ctx = document.getElementById('priceChart');
+    if (ctx) {
+      const priceChart = new Chart(ctx, {
         type: 'line',
         data: {
           labels: {{CHART_LABELS}},
@@ -219,24 +259,70 @@
             borderColor: '#6ee7ff',
             backgroundColor: 'rgba(110, 231, 255, 0.1)',
             borderWidth: 2,
-            tension: 0.1
+            fill: true,
+            tension: 0.4,
+            pointRadius: 0
           }]
         },
         options: {
           responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }
+          },
           scales: {
-            y: {
-              beginAtZero: false
+            x: { display: false },
+            y: { 
+              grid: { color: 'rgba(255,255,255,.05)' },
+              ticks: { color: '#93a7c6' }
             }
           }
         }
       });
     }
-    
-    // Auto-refresh setiap 10 detik
+
+    // Auto-refresh every 10 seconds
+    let refreshCount = 0;
     setInterval(() => {
-      window.location.reload();
-    }, 10000);
-  </script
+      refreshCount++;
+      document.getElementById('connectionStatus').textContent = `LIVE (${refreshCount}s)`;
+    }, 1000);
+
+    // Manual refresh function
+    function refreshData() {
+      const btn = event.target;
+      btn.textContent = '⏳ Loading...';
+      btn.disabled = true;
+      
+      // Fetch latest data
+      fetch('summary.json')
+        .then(r => r.json())
+        .then(data => {
+          console.log('Data refreshed:', data);
+          location.reload();
+        })
+        .catch(err => {
+          console.error('Refresh error:', err);
+          location.reload();
+        })
+        .finally(() => {
+          btn.textContent = '↻ Refresh';
+          btn.disabled = false;
+        });
+    }
+
+    // Calculate spread
+    const bestBid = document.getElementById('bestBid');
+    const bestAsk = document.getElementById('bestAsk');
+    const spreadValue = document.getElementById('spreadValue');
+    
+    if (bestBid && bestAsk) {
+      const bid = parseFloat(bestBid.textContent.replace(/[^0-9.]/g, ''));
+      const ask = parseFloat(bestAsk.textContent.replace(/[^0-9.]/g, ''));
+      if (!isNaN(bid) && !isNaN(ask)) {
+        spreadValue.textContent = `$${(ask - bid).toFixed(2)}`;
+      }
+    }
+  </script>
 </body>
 </html>

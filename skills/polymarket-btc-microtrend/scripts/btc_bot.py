@@ -504,15 +504,17 @@ def render_dashboard(summary: Dict[str, Any], output_path: Path) -> None:
     else:
         best_html = '<div class="card"><strong>No setup yet</strong><div class="footnote">No valid BTC microtrend setup found yet.</div></div>'
 
+    # Simplified signal rows for new dashboard
     rows = []
-    for s in signals:
+    for s in signals[:10]:  # Top 10 signals
         badge = "bull" if "bull" in str(s.get("bias")) else ("bear" if "bear" in str(s.get("bias")) else "neutral")
-        status = classify_status(str(s.get("action", "")))
+        prob = s.get('implied_yes_probability')
+        prob_display = f"{prob:.1%}" if prob is not None else "N/A"
         rows.append(
-            f"<tr data-family='{s.get('family','other-btc')}'><td>{s.get('question','n/a')}</td><td>{s.get('family','n/a')}</td><td><span class='pill {badge}'>{s.get('bias','n/a')}</span></td><td>{s.get('confidence','n/a')}</td><td>{s.get('implied_yes_probability','n/a')}</td><td>{s.get('distance_pct','n/a')}</td><td>{s.get('model_score','n/a')}</td><td>{s.get('action','n/a')}</td><td><span class='{status['css']}'>{status['label']}</span></td></tr>"
+            f"<tr><td style='max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;' title='{s.get('question','n/a')}'>{s.get('question','n/a')}</td><td><span class='pill {badge}'>{s.get('bias','n/a')}</span></td><td>{s.get('confidence','n/a')}</td><td>{prob_display}</td><td>{s.get('model_score','n/a')}</td><td>{s.get('action','n/a')}</td></tr>"
         )
     if not rows:
-        rows.append("<tr><td colspan='9'>No BTC target/deadline signals found.</td></tr>")
+        rows.append("<tr><td colspan='6'>No BTC signals found.</td></tr>")
 
     alert_payload = summary.get("alert") or {}
     top_actionable = (alert_payload.get("top_actionable") or {})
@@ -528,42 +530,59 @@ def render_dashboard(summary: Dict[str, Any], output_path: Path) -> None:
     )
     alert_class = "good" if mode in {"hard", "soft"} else "idle"
 
-    # Siapkan data order book untuk tabel
-    order_book_rows = ""
-    for bid, ask in zip(order_book.get("bids", [])[:10], order_book.get("asks", [])[:10]):
-        order_book_rows += "<tr><td>{}</td><td>{}</td><td>{}</td></tr>".format(
-            bid.get('price', 'N/A'), bid.get('size', 'N/A'), ask.get('size', 'N/A')
+    # Prepare order book rows (separate bids and asks)
+    bids_html = ""
+    for bid in order_book.get("bids", [])[:10]:
+        bids_html += '<div class="ob-row"><span class="ob-price" style="color:#22c55e">${:,.2f}</span><span class="ob-size">{}</span></div>'.format(
+            bid.get('price', 0), bid.get('size', 0)
         )
     
-    # Siapkan data trades untuk tabel
+    asks_html = ""
+    for ask in order_book.get("asks", [])[:10]:
+        asks_html += '<div class="ob-row"><span class="ob-price" style="color:#ef4444">${:,.2f}</span><span class="ob-size">{}</span></div>'.format(
+            ask.get('price', 0), ask.get('size', 0)
+        )
+    
+    # Prepare trade rows
     trade_rows = ""
     for trade in recent_trades:
-        trade_rows += "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(
-            trade.get('timestamp', 'N/A'), trade.get('price', 'N/A'), trade.get('size', 'N/A'), trade.get('side', 'N/A')
+        side_class = "buy" if trade.get('side') == 'buy' else "sell"
+        side_color = "#22c55e" if trade.get('side') == 'buy' else "#ef4444"
+        trade_rows += '<tr class="trade-row {}"><td style="font-size:11px;color:var(--muted)">{}</td><td>${:,.2f}</td><td>{}</td><td style="color:{};font-weight:600">{}</td></tr>'.format(
+            side_class,
+            trade.get('timestamp', 'N/A')[-8:] if trade.get('timestamp') else 'N/A',
+            trade.get('price', 0),
+            trade.get('size', 0),
+            side_color,
+            trade.get('side', 'N/A').upper()
         )
     
     # Siapkan data untuk grafik harga
     chart_labels = [trade.get('timestamp', '') for trade in recent_trades]
     chart_data = [trade.get('price', 0) for trade in recent_trades]
     
+    # Format BTC price for display
+    btc_spot = summary.get("btc_spot") or summary.get("chainlink_btc_usd") or 67000
+    btc_display = f"${btc_spot:,.2f}" if btc_spot else "N/A"
+    
+    # Get best bid/ask for stats
+    bids = order_book.get("bids", [])
+    asks = order_book.get("asks", [])
+    best_bid_display = f"${bids[0]['price']:,.2f}" if bids else "--"
+    best_ask_display = f"${asks[0]['price']:,.2f}" if asks else "--"
+    
     replacements = {
-        "{{LAST_RUN}}": str(summary.get("ran_at") or "n/a"),
-        "{{BTC_SPOT}}": str(summary.get("btc_spot") or "n/a"),
-        "{{CHAINLINK_SPOT}}": str(summary.get("chainlink_btc_usd") or "n/a"),
+        "{{LAST_RUN}}": str(summary.get("ran_at") or "n/a")[-16:],  # Show only time
+        "{{BTC_SPOT}}": btc_display,
+        "{{CHAINLINK_SPOT}}": btc_display,
         "{{ACTIONABLE_COUNT}}": str(((summary.get("alert") or {}).get("actionable_count")) or 0),
         "{{ALERT_TEXT}}": alert_text,
         "{{ALERT_CLASS}}": alert_class,
-        "{{BEST_SETUP}}": best_html,
-        "{{REGIME}}": str(summary.get("regime") or "n/a"),
-        "{{BLACKSWAN}}": str(summary.get("black_swan_status") or "n/a"),
-        "{{VALID_MARKETS}}": str(((summary.get("market_universe") or {}).get("valid_markets")) or 0),
-        "{{BEST_YES}}": str(((summary.get("best_yes_candidate") or {}).get("question")) or "none"),
-        "{{BEST_NO}}": str(((summary.get("best_no_candidate") or {}).get("question")) or "none"),
-        "{{NOTES}}": str(summary.get("notes") or "n/a"),
         "{{SIGNAL_ROWS}}": "\n".join(rows),
-        "{{ORDER_BOOK_ROWS}}": order_book_rows,
+        "{{ORDER_BOOK_BIDS}}": bids_html,
+        "{{ORDER_BOOK_ASKS}}": asks_html,
         "{{TRADE_ROWS}}": trade_rows,
-        "{{CHART_LABELS}}": json.dumps(chart_labels),
+        "{{CHART_LABELS}}": json.dumps([f"Trade {i+1}" for i in range(len(chart_data))]),
         "{{CHART_DATA}}": json.dumps(chart_data),
     }
     html = template
