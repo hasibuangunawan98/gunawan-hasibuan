@@ -498,25 +498,16 @@ def render_dashboard(summary: Dict[str, Any], output_path: Path) -> None:
     # Siapkan data order book untuk tabel
     order_book_rows = ""
     for bid, ask in zip(order_book.get("bids", [])[:10], order_book.get("asks", [])[:10]):
-        order_book_rows += f"
-        <tr>
-            <td>{bid.get('price', 'N/A')}</td>
-            <td>{bid.get('size', 'N/A')}</td>
-            <td>{ask.get('size', 'N/A')}</td>
-        </tr>
-        "
+        order_book_rows += "<tr><td>{}</td><td>{}</td><td>{}</td></tr>".format(
+            bid.get('price', 'N/A'), bid.get('size', 'N/A'), ask.get('size', 'N/A')
+        )
     
     # Siapkan data trades untuk tabel
     trade_rows = ""
     for trade in recent_trades:
-        trade_rows += f"
-        <tr>
-            <td>{trade.get('timestamp', 'N/A')}</td>
-            <td>{trade.get('price', 'N/A')}</td>
-            <td>{trade.get('size', 'N/A')}</td>
-            <td>{trade.get('side', 'N/A')}</td>
-        </tr>
-        "
+        trade_rows += "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(
+            trade.get('timestamp', 'N/A'), trade.get('price', 'N/A'), trade.get('size', 'N/A'), trade.get('side', 'N/A')
+        )
     
     # Siapkan data untuk grafik harga
     chart_labels = [trade.get('timestamp', '') for trade in recent_trades]
